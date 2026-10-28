@@ -1,0 +1,16 @@
+INFORME DE CALIDAD GDELT GKG
+Archivo: data/raw/gdelt_sample.zip
+Columnas: 11
+Registros leidos: 83729
+Registros mal formados: 0
+Fechas distintas: 1
+
+Registros por fecha:
+20261022: 83729
+
+Campos vacios por columna:
+COUNTS: 72724
+THEMES: 9182
+CAMEOEVENTIDS: 42363
+ORGANIZATIONS: 13388
+PERSONS: 12954
