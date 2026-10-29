@@ -68,6 +68,11 @@ def load_mongodb(input_path):
         print(f"Documentos nuevos: {inserted:,}")
         print(f"Documentos existentes: {existing:,}")
         print(f"Total en MongoDB: {collection.count_documents({}):,}")
+        return {
+          "processed": processed,
+          "inserted": inserted,
+          "existing": existing,
+}
 
     finally:
         client.close()

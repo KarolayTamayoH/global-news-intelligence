@@ -1,11 +1,13 @@
 
 import argparse
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from time import perf_counter
+
 
 from pymongo import MongoClient
 
-# Permitir importar modulos desde la raiz del proyecto.
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
@@ -13,12 +15,10 @@ from src.ingestion.check_gdelt_index import get_available_files
 from src.ingestion.download_gdelt import download_file
 from src.ingestion.load_mongodb import load_mongodb
 from src.transformation.transform_gkg import transform_file
-
+from src.validation.validate_gkg import validate_gkg
 
 MONGO_URI = "mongodb://localhost:27018/"
 DATABASE = "global_news"
-
-RAW_DIR = ROOT / "data/raw"
 
 
 def run_incremental(days=7):
@@ -29,21 +29,14 @@ def run_incremental(days=7):
 
     try:
         client.admin.command("ping")
-
         history = client[DATABASE]["ingestion_history"]
 
         available_files = get_available_files()
 
         if not available_files:
-            raise RuntimeError(
-                "No se encontraron archivos en GDELT."
-            )
+            raise RuntimeError("No se encontraron archivos GKG.")
 
-        # Seleccionar los archivos diarios mas recientes.
-        selected_files = available_files[:days]
-
-        # Procesar en orden cronologico.
-        selected_files.reverse()
+        selected_files = list(reversed(available_files[:days]))
 
         print(f"Archivos seleccionados: {len(selected_files)}")
 
@@ -55,44 +48,72 @@ def run_incremental(days=7):
                 continue
 
             print(f"\nProcesando: {filename}")
+            start = perf_counter()
+
+            history.update_one(
+                {"_id": filename},
+                {
+                    "$set": {
+                        "date": filename[:8],
+                        "status": "processing",
+                        "started_at": datetime.now(timezone.utc),
+                    },
+                    "$unset": {"error": ""},
+                },
+                upsert=True,
+            )
 
             try:
-                # 1. Descargar.
-                download_file(filename)
+                # 1. Descargar y comprobar la integridad del ZIP.
+                zip_path = download_file(filename)
 
-                zip_path = RAW_DIR / filename
+                # 2. Validar el esquema y los registros.
+                validation = validate_gkg(zip_path)
 
-                # 2. Transformar.
+                # 3. Transformar a JSONL.
                 output_path = transform_file(zip_path)
 
-                # 3. Cargar MongoDB.
-                load_mongodb(output_path)
+                # 4. Cargar en MongoDB.
+                stats = load_mongodb(output_path)
 
-                # 4. Registrar archivo completado.
+                if stats["processed"] != validation["total"]:
+                  raise ValueError(
+                      "La cantidad de documentos cargados no coincide "
+                      "con los registros validados"
+                  )
+
+                duration = round(perf_counter() - start, 2)
+
                 history.update_one(
                     {"_id": filename},
                     {
                         "$set": {
-                            "date": filename[:8],
                             "status": "completed",
+                            "records": stats["processed"],
+                            "inserted": stats["inserted"],
+                            "existing": stats["existing"],
+                            "duration_seconds": duration,
+                            "completed_at": datetime.now(timezone.utc),
                         }
                     },
-                    upsert=True,
                 )
 
                 print(f"Completado: {filename}")
+                print(f"Duracion: {duration} segundos")
 
             except Exception as error:
+                duration = round(perf_counter() - start, 2)
+
                 history.update_one(
                     {"_id": filename},
                     {
                         "$set": {
-                            "date": filename[:8],
                             "status": "failed",
                             "error": str(error),
+                            "duration_seconds": duration,
+                            "failed_at": datetime.now(timezone.utc),
                         }
                     },
-                    upsert=True,
                 )
 
                 print(f"Error en {filename}: {error}")
@@ -118,3 +139,4 @@ if __name__ == "__main__":
         parser.error("--days debe ser mayor que cero")
 
     run_incremental(days=args.days)
+
