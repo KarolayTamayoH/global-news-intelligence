@@ -1,0 +1,12 @@
+
+CREATE CONSTRAINT gkg_record_id IF NOT EXISTS
+FOR (r:GKGRecord)
+REQUIRE r.id IS UNIQUE;
+
+CREATE CONSTRAINT theme_name IF NOT EXISTS
+FOR (t:Theme)
+REQUIRE t.name IS UNIQUE;
+
+CREATE CONSTRAINT organization_name IF NOT EXISTS
+FOR (o:Organization)
+REQUIRE o.name IS UNIQUE;
