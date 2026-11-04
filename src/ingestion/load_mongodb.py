@@ -5,8 +5,7 @@ from pathlib import Path
 
 from pymongo import MongoClient, UpdateOne
 
-MONGO_URI = "mongodb://localhost:27018/"
-DATABASE = "global_news"
+from src.config import MONGO_URI, MONGO_DATABASE as DATABASE
 COLLECTION = "gkg_records"
 BATCH_SIZE = 1000
 

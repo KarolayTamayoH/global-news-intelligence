@@ -17,8 +17,7 @@ from src.ingestion.load_mongodb import load_mongodb
 from src.transformation.transform_gkg import transform_file
 from src.validation.validate_gkg import validate_gkg
 
-MONGO_URI = "mongodb://localhost:27018/"
-DATABASE = "global_news"
+from src.config import MONGO_URI, MONGO_DATABASE as DATABASE
 
 
 def run_incremental(days=7):

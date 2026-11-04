@@ -4,6 +4,10 @@
 
 > **Estado del proyecto:** ingesta histórica e incremental local operativas; MongoDB, Cassandra y Neo4j con datos reales; dashboard Streamlit con seis KPIs implementados. La integración completa con Apache Airflow / Google Cloud Composer 3, la conectividad nube–bases locales, las pruebas CRUD y los entregables finales siguen pendientes.
 >
+> **Configuración reproducible verificada el 3 de noviembre:** `compose.yaml`, dependencias fijadas, `.env.example`, configuración central y bootstrap de las tres bases. Guía actual: [arranque local](docs/ejecucion_local.md). El nuevo stack tiene 84 723 registros de 20261027, reconciliados en las tres bases; [evidencia JSON](docs/verificacion_local.json). Las 15 pruebas locales pasan.
+>
+> **Avance local del 3 de noviembre de 2026:** validación compartida DAG/scripts, comprobación de conteos Neo4j y correcciones del dashboard implementadas con diez pruebas de regresión. Se validaron 84 723 filas del ZIP local de 2026-10-27. El despliegue Airflow sigue sin verificarse; la comprobación de bases activas se realizó después en el nuevo stack, según la actualización anterior. Ver [plan actualizado](docs/plan_proximos_pasos.md). Las secciones históricas siguientes conservan estados del 29 de octubre y deben interpretarse con esta actualización.
+>
 > **Corte de datos verificado:** 23–27 de octubre de 2026. **Última revisión documental:** 29 de octubre de 2026. Las cifras de este README son una fotografía del estado comprobado, no un contador en vivo.
 
 ## Contenido
@@ -115,7 +119,7 @@ flowchart TD
 ## 4. Fuente de datos y modelo GKG
 
 - **Fuente:** [GDELT GKG](https://data.gdeltproject.org/gkg/index.html).
-- **Formato utilizado:** archivo ZIP diario que contiene un CSV/TSV sin encabezado con **11 campos**, separados por tabuladores.
+- **Formato utilizado:** archivo ZIP diario que contiene un CSV/TSV con cabecera y **11 campos**, separados por tabuladores.
 - **Particiones:** fechas en formato `YYYYMMDD`, por ejemplo `20261027.gkg.csv.zip`.
 - **Naturaleza:** registros semiestructurados que describen información extraída/agregada de cobertura informativa; incluyen temas, personas, organizaciones, ubicaciones, tono y fuentes.
 - **Histórico + actualizaciones:** los archivos antiguos pueden recuperarse por fecha y se pueden consultar archivos nuevos cuando GDELT los publica.
@@ -425,7 +429,7 @@ Este argumento `--days` está confirmado en el desarrollo. Su interpretación ex
 ### 12.5 Consultar KPIs
 
 ```bash
-python scripts/cassandra/check_kpis.py
+python -m scripts.cassandra.check_kpis
 ```
 
 ### 12.6 Iniciar dashboard
@@ -619,3 +623,11 @@ El **informe PDF** debe incluir introducción, problema, arquitectura, dataset, 
 ---
 
 **Global News Intelligence** — de archivos GDELT reales a análisis multimodelo reproducible.
+
+## Pruebas de regresión locales
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Los casos usan ZIP sintéticos, clientes de bases simulados y Streamlit AppTest. No requieren servicios de base de datos activos. Las pruebas del DAG ejecutan sus cuerpos Python; no validan su importación en Airflow, ausente del entorno local. Para desplegar, `src.validation.validate_gkg` debe ser importable en el trabajador junto al DAG.

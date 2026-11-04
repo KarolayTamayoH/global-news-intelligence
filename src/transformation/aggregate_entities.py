@@ -6,18 +6,22 @@ from pymongo import MongoClient
 from cassandra.cluster import Cluster
 
 
-MONGO_URI = "mongodb://localhost:27018/"
-CASSANDRA_HOST = "127.0.0.1"
-CASSANDRA_PORT = 9043
+from src.config import MONGO_URI, MONGO_DATABASE, CASSANDRA_HOST, CASSANDRA_PORT, CASSANDRA_KEYSPACE
+from src.validation.validate_gkg import validate_target_date
 
 
-def aggregate_entities():
+def aggregate_entities(target_date=None):
+    if target_date is not None:
+        validate_target_date(target_date)
     mongo_client = MongoClient(MONGO_URI)
     cluster = Cluster([CASSANDRA_HOST], port=CASSANDRA_PORT)
 
     try:
-        collection = mongo_client["global_news"]["gkg_records"]
-        session = cluster.connect("global_news_analytics")
+        collection = mongo_client[MONGO_DATABASE]["gkg_records"]
+        session = cluster.connect(CASSANDRA_KEYSPACE)
+        if target_date and collection.count_documents({"date": target_date}) == 0:
+            raise ValueError(f"No hay registros para la fecha {target_date}")
+
 
         insert_theme = session.prepare("""
             INSERT INTO daily_theme_metrics (
@@ -33,7 +37,7 @@ def aggregate_entities():
             VALUES (?, ?, ?)
         """)
 
-        dates = sorted(collection.distinct("date"))
+        dates = [target_date] if target_date else sorted(collection.distinct("date"))
 
         for date_str in dates:
             print(f"\nProcesando: {date_str}")
@@ -113,4 +117,9 @@ def aggregate_entities():
 
 
 if __name__ == "__main__":
-    aggregate_entities()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", help="Particion YYYYMMDD; por defecto todas las fechas")
+    args = parser.parse_args()
+    aggregate_entities(args.date)

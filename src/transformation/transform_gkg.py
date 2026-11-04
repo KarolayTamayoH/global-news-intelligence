@@ -7,6 +7,8 @@ import json
 import zipfile
 from pathlib import Path
 
+from src.config import PROCESSED_DIR
+
 
 def split_values(value):
     if not value:
@@ -43,7 +45,7 @@ def transform_file(zip_path):
         raise FileNotFoundError(f"No existe: {zip_path}")
 
     date = zip_path.name[:8]
-    output_path = Path("data/processed") / f"{date}.jsonl"
+    output_path = PROCESSED_DIR / f"{date}.jsonl"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     processed = 0
