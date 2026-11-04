@@ -8,3 +8,9 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+.env.*
+!.env.example
+README.md
+instrucciones_proyecto.md
+informe.tex
+informe.pdf

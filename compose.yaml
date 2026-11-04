@@ -1,0 +1,52 @@
+name: global-news-intelligence
+services:
+  mongodb:
+    image: ${MONGO_IMAGE:-mongo:8.0}
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27018}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand({ping: 1}).ok ? 0 : 1)"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+  cassandra:
+    image: ${CASSANDRA_IMAGE:-cassandra:5.0}
+    ports:
+      - "127.0.0.1:${CASSANDRA_PORT:-9043}:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: global-news-intelligence
+      MAX_HEAP_SIZE: 1G
+      HEAP_NEWSIZE: 256M
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "SELECT release_version FROM system.local;"]
+      interval: 20s
+      timeout: 15s
+      retries: 20
+      start_period: 90s
+  neo4j:
+    image: ${NEO4J_IMAGE:-neo4j:5.26-community}
+    ports:
+      - "127.0.0.1:${NEO4J_HTTP_PORT:-7475}:7474"
+      - "127.0.0.1:${NEO4J_BOLT_PORT:-7688}:7687"
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:?Configura NEO4J_PASSWORD en .env}"
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+volumes:
+  mongodb_data:
+  cassandra_data:
+  neo4j_data:

@@ -5,6 +5,7 @@ import io
 import re
 import zipfile
 from pathlib import Path
+from datetime import datetime
 
 EXPECTED_COLUMNS = [
     "DATE",
@@ -21,18 +22,29 @@ EXPECTED_COLUMNS = [
 ]
 
 
-def validate_gkg(zip_path):
-    zip_path = Path(zip_path)
-    expected_date = zip_path.name[:8]
+def validate_target_date(value):
+    """Validate a daily partition without accepting abbreviated dates."""
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9]{8}", value):
+        raise ValueError("La fecha debe tener formato YYYYMMDD")
+    datetime.strptime(value, "%Y%m%d")
+    return value
 
-    if not re.fullmatch(r"\d{8}", expected_date):
-        raise ValueError("Fecha invalida en el nombre del archivo")
+
+def validate_gkg_archive(zip_source, expected_date):
+    """Shared contract for a ZIP path or a seekable binary stream."""
+    validate_target_date(expected_date)
 
     total = 0
     invalid = 0
 
-    with zipfile.ZipFile(zip_path) as archive:
-        csv_name = archive.namelist()[0]
+    with zipfile.ZipFile(zip_source) as archive:
+        expected_csv = f"{expected_date}.gkg.csv"
+        if archive.namelist() != [expected_csv]:
+            raise ValueError(f"Se esperaba un unico archivo {expected_csv}")
+        if archive.testzip() is not None:
+            raise ValueError("Archivo ZIP corrupto")
+
+        csv_name = expected_csv
 
         with archive.open(csv_name) as binary_file:
             text_file = io.TextIOWrapper(
@@ -57,16 +69,23 @@ def validate_gkg(zip_path):
                     invalid += 1
                     continue
 
+                try:
+                    if len(row[0]) == 8:
+                        validate_target_date(row[0])
+                    elif re.fullmatch(r"[0-9]{14}", row[0]):
+                        datetime.strptime(row[0], "%Y%m%d%H%M%S")
+                    else:
+                        raise ValueError("Fecha GKG invalida")
+                except ValueError:
+                    invalid += 1
+                    continue
+
                 if row[0][:8] != expected_date:
                     invalid += 1
                     continue
 
-                if not row[1].isdigit():
+                if not re.fullmatch(r"[0-9]+", row[1]):
                     invalid += 1
-
-    print(f"Archivo validado: {zip_path.name}")
-    print(f"Registros: {total:,}")
-    print(f"Registros invalidos: {invalid:,}")
 
     if total == 0:
         raise ValueError("El archivo no contiene registros")
@@ -80,6 +99,15 @@ def validate_gkg(zip_path):
         "total": total,
         "invalid": invalid,
     }
+
+
+def validate_gkg(zip_path):
+    zip_path = Path(zip_path)
+    result = validate_gkg_archive(zip_path, zip_path.name[:8])
+    print(f"Archivo validado: {zip_path.name}")
+    print(f"Registros: {result['total']:,}")
+    print(f"Registros invalidos: {result['invalid']:,}")
+    return result
 
 
 if __name__ == "__main__":

@@ -3,13 +3,12 @@
 #Renombrar el archivo temporal únicamente cuando pase la validación.
 import re
 import zipfile
-from pathlib import Path
+from src.config import RAW_DIR
 from urllib.request import Request, urlopen
 
 INDEX_URL = "https://data.gdeltproject.org/gkg/index.html"
 BASE_URL = "https://data.gdeltproject.org/gkg/"
 
-RAW_DIR = Path(__file__).resolve().parents[2] / "data/raw"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
 

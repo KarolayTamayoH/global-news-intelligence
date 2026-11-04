@@ -4,7 +4,6 @@
 # HAS_THEME: conecta un registro con un tema.
 # MENTIONS_ORG: conecta un registro con una organización.
 
-import os
 import argparse
 from datetime import datetime, timezone
 from time import perf_counter
@@ -13,10 +12,10 @@ from pymongo import MongoClient
 from neo4j import GraphDatabase
 
 
-MONGO_URI = "mongodb://localhost:27018/"
-NEO4J_URI = "bolt://localhost:7688"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+from src.config import (
+    MONGO_URI, MONGO_DATABASE, NEO4J_URI, NEO4J_USER,
+    NEO4J_PASSWORD, NEO4J_DATABASE,
+)
 
 BATCH_SIZE = 100
 
@@ -66,7 +65,7 @@ def load_neo4j(target_date, limit=None):
     try:
         driver.verify_connectivity()
 
-        database = mongo_client["global_news"]
+        database = mongo_client[MONGO_DATABASE]
         collection = database["gkg_records"]
         history = database["neo4j_ingestion_history"]
 
@@ -99,7 +98,7 @@ def load_neo4j(target_date, limit=None):
         batch = []
         processed = 0
 
-        with driver.session(database="neo4j") as session:
+        with driver.session(database=NEO4J_DATABASE) as session:
             for doc in cursor:
                 record = {
                     "id": str(doc["_id"]),
@@ -144,26 +143,27 @@ def load_neo4j(target_date, limit=None):
                     f"Registros incompletos: {processed}/{expected}"
                 )
 
+            # Verificar los registros realmente almacenados en Neo4j
+            with driver.session(database=NEO4J_DATABASE) as session:
+                result = session.run(
+                    """
+                    MATCH (r:GKGRecord {date: $date})
+                    RETURN count(r) AS total
+                    """,
+                    date=target_date
+                ).single()
+
+                stored = result["total"]
+
+            if stored != expected:
+                raise ValueError(
+                    f"Neo4j contiene {stored} registros, "
+                    f"pero MongoDB contiene {expected}"
+                )
+
+            print(f"Verificacion Neo4j: {stored:,}/{expected:,}")
+
             if expected == 0:
-                # Verificar los registros realmente almacenados en Neo4j
-                with driver.session(database="neo4j") as session:
-                    result = session.run(
-                        """
-                        MATCH (r:GKGRecord {date: $date})
-                        RETURN count(r) AS total
-                        """,
-                        date=target_date
-                    ).single()
-
-                    stored = result["total"]
-
-                if stored != expected:
-                    raise ValueError(
-                        f"Neo4j contiene {stored} registros, "
-                        f"pero MongoDB contiene {expected}"
-                    )
-
-                print(f"Verificacion Neo4j: {stored:,}/{expected:,}")
                 raise ValueError(
                     f"No hay registros para la fecha {target_date}"
                 )

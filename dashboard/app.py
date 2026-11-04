@@ -11,6 +11,7 @@ import pandas as pd
 import plotly.express as px
 
 from cassandra.cluster import Cluster
+from src.config import CASSANDRA_HOST, CASSANDRA_PORT, CASSANDRA_KEYSPACE
 
 
 # Configuracion de pagina
@@ -69,8 +70,8 @@ st.markdown("""
 # Conexion a Cassandra
 @st.cache_resource
 def get_cassandra_session():
-    cluster = Cluster(["127.0.0.1"], port=9043)
-    return cluster.connect("global_news_analytics")
+    cluster = Cluster([CASSANDRA_HOST], port=CASSANDRA_PORT)
+    return cluster.connect(CASSANDRA_KEYSPACE)
 
 
 # Datos diarios
@@ -109,7 +110,8 @@ def get_daily_metrics():
 
     if not df.empty:
         df = df.sort_values("fecha").reset_index(drop=True)
-        df["variacion_pct"] = df["registros"].pct_change() * 100
+        previous = df["registros"].shift(1)
+        df["variacion_pct"] = (df["registros"] - previous) / previous.where(previous > 0) * 100
 
     return df
 
@@ -313,7 +315,7 @@ try:
         )
 
         st.caption(
-            f"Fecha analizada: {latest_date} | "
+            f"Fecha analizada: {selected_date} | "
             "Un registro puede contener varios temas."
         )
 
@@ -323,172 +325,171 @@ try:
             config={"displayModeBar": False}
         )
 
-        # KPI 4 y KPI 5
-        st.subheader("Diversidad tematica y tono informativo")
+    # KPI 4 y KPI 5
+    st.subheader("Diversidad tematica y tono informativo")
 
-        latest_themes = int(df.iloc[-1]["temas_unicos"])
-        latest_tone = float(df.iloc[-1]["tono_promedio"])
+    latest_themes = int(df.iloc[-1]["temas_unicos"])
+    latest_tone = df.iloc[-1]["tono_promedio"]
 
-        col1, col2 = st.columns(2, gap="medium")
+    col1, col2 = st.columns(2, gap="medium")
 
-        with col1:
-            st.metric(
-                "Temas distintos del ultimo dia",
-                f"{latest_themes:,}"
-            )
+    with col1:
+        st.metric(
+            "Temas distintos del ultimo dia",
+            f"{latest_themes:,}"
+        )
 
-            fig_diversity = px.line(
-                df,
-                x="fecha",
-                y="temas_unicos",
-                markers=True
-            )
+        fig_diversity = px.line(
+            df,
+            x="fecha",
+            y="temas_unicos",
+            markers=True
+        )
 
-            fig_diversity.update_traces(
-                line=dict(color="#a78bfa", width=3),
-                marker=dict(size=8)
-            )
+        fig_diversity.update_traces(
+            line=dict(color="#a78bfa", width=3),
+            marker=dict(size=8)
+        )
 
-            fig_diversity.update_layout(
-                template="plotly_dark",
-                height=340,
-                margin=dict(l=10, r=10, t=20, b=20),
-                xaxis_title="Fecha",
-                yaxis_title="Temas distintos",
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
+        fig_diversity.update_layout(
+            template="plotly_dark",
+            height=340,
+            margin=dict(l=10, r=10, t=20, b=20),
+            xaxis_title="Fecha",
+            yaxis_title="Temas distintos",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)"
+        )
 
-            st.plotly_chart(
-                fig_diversity,
-                width="stretch",
-                config={"displayModeBar": False}
-            )
+        st.plotly_chart(
+            fig_diversity,
+            width="stretch",
+            config={"displayModeBar": False}
+        )
 
-        with col2:
-            st.metric(
-                "Tono promedio del ultimo dia",
-                f"{latest_tone:+.2f}"
-            )
+    with col2:
+        st.metric(
+            "Tono promedio del ultimo dia",
+            f"{latest_tone:+.2f}" if pd.notna(latest_tone) else "N/D"
+        )
 
-            fig_tone = px.line(
-                df,
-                x="fecha",
-                y="tono_promedio",
-                markers=True
-            )
+        fig_tone = px.line(
+            df,
+            x="fecha",
+            y="tono_promedio",
+            markers=True
+        )
 
-            fig_tone.update_traces(
-                line=dict(color="#f59e0b", width=3),
-                marker=dict(size=8)
-            )
+        fig_tone.update_traces(
+            line=dict(color="#f59e0b", width=3),
+            marker=dict(size=8)
+        )
 
-            fig_tone.add_hline(
-                y=0,
-                line_dash="dash",
-                line_color="#94a3b8"
-            )
+        fig_tone.add_hline(
+            y=0,
+            line_dash="dash",
+            line_color="#94a3b8"
+        )
 
-            fig_tone.update_layout(
-                template="plotly_dark",
-                height=340,
-                margin=dict(l=10, r=10, t=20, b=20),
-                xaxis_title="Fecha",
-                yaxis_title="Tono promedio GDELT",
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
+        fig_tone.update_layout(
+            template="plotly_dark",
+            height=340,
+            margin=dict(l=10, r=10, t=20, b=20),
+            xaxis_title="Fecha",
+            yaxis_title="Tono promedio GDELT",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)"
+        )
 
-            st.plotly_chart(
-                fig_tone,
-                width="stretch",
-                config={"displayModeBar": False}
-            )
+        st.plotly_chart(
+            fig_tone,
+            width="stretch",
+            config={"displayModeBar": False}
+        )
+
+    st.caption(
+        "La diversidad corresponde a codigos tematicos distintos. "
+        "El tono es el promedio de los valores disponibles en GDELT GKG."
+    )
+
+
+    # KPI 6: Entidades organizacionales
+    st.subheader("Top 10 entidades organizacionales")
+
+    top_orgs = get_top_organizations(selected_date)
+
+    if top_orgs.empty:
+        st.info(
+            "No hay datos de entidades para esta fecha."
+        )
+    else:
+        fig_orgs = px.bar(
+            top_orgs,
+            x="registros",
+            y="organizacion",
+            orientation="h",
+            text="registros"
+        )
+
+        fig_orgs.update_traces(
+            marker_color="#34d399",
+            textposition="outside"
+        )
+
+        fig_orgs.update_layout(
+            template="plotly_dark",
+            height=470,
+            margin=dict(l=20, r=85, t=20, b=20),
+            xaxis_title="Registros GKG",
+            yaxis_title="",
+            yaxis=dict(
+                categoryorder="total ascending",
+                automargin=True
+            ),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)"
+        )
 
         st.caption(
-            "La diversidad corresponde a codigos tematicos distintos. "
-            "El tono es el promedio de los valores disponibles en GDELT GKG."
+            f"Fecha analizada: {selected_date} | "
+            "Entidades extraidas del campo de organizaciones "
+            "de GDELT."
+        )
+
+        st.plotly_chart(
+            fig_orgs,
+            width="stretch",
+            config={"displayModeBar": False}
         )
 
 
-        # KPI 6: Entidades organizacionales
-        st.subheader("Top 10 entidades organizacionales")
-
-        top_orgs = get_top_organizations(selected_date)
-
-        if top_orgs.empty:
-            st.info(
-                "No hay datos de entidades para esta fecha."
-            )
-        else:
-            fig_orgs = px.bar(
-                top_orgs,
-                x="registros",
-                y="organizacion",
-                orientation="h",
-                text="registros"
-            )
-
-            fig_orgs.update_traces(
-                marker_color="#34d399",
-                textposition="outside"
-            )
-
-            fig_orgs.update_layout(
-                template="plotly_dark",
-                height=470,
-                margin=dict(l=20, r=85, t=20, b=20),
-                xaxis_title="Registros GKG",
-                yaxis_title="",
-                yaxis=dict(
-                    categoryorder="total ascending",
-                    automargin=True
+    # Tabla de datos
+    with st.expander("Ver datos diarios"):
+        st.dataframe(
+            df,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "fecha": st.column_config.DateColumn(
+                    "Fecha",
+                    format="DD/MM/YYYY"
                 ),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
-
-            st.caption(
-                f"Fecha analizada: {selected_date} | "
-                "Entidades extraidas del campo de organizaciones "
-                "de GDELT."
-            )
-
-            st.plotly_chart(
-                fig_orgs,
-                width="stretch",
-                config={"displayModeBar": False}
-            )
-
-
-        # Tabla de datos
-        with st.expander("Ver datos diarios"):
-            st.dataframe(
-                df,
-                width="stretch",
-                hide_index=True,
-                column_config={
-                    "fecha": st.column_config.DateColumn(
-                        "Fecha",
-                        format="DD/MM/YYYY"
-                    ),
-                    "registros": st.column_config.NumberColumn(
-                        "Registros GKG",
-                        format="%d"
-                    ),
-                    "variacion_pct": st.column_config.NumberColumn(
-                        "Variacion (%)",
-                        format="%.2f%%"
-                    )
-                }
-            )
-
-        st.caption(
-            "Fuente: GDELT GKG | "
-            "Procesamiento: MongoDB y Cassandra | "
-            "Los registros GKG no equivalen a articulos unicos."
+                "registros": st.column_config.NumberColumn(
+                    "Registros GKG",
+                    format="%d"
+                ),
+                "variacion_pct": st.column_config.NumberColumn(
+                    "Variacion (%)",
+                    format="%.2f%%"
+                )
+            }
         )
 
+    st.caption(
+        "Fuente: GDELT GKG | "
+        "Procesamiento: MongoDB y Cassandra | "
+        "Los registros GKG no equivalen a articulos unicos."
+    )
 except Exception as error:
     st.error("Error al consultar los datos.")
     st.exception(error)

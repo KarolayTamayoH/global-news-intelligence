@@ -11,18 +11,22 @@ from pymongo import MongoClient
 from cassandra.cluster import Cluster
 
 
-MONGO_URI = "mongodb://localhost:27018/"
-CASSANDRA_HOST = "127.0.0.1"
-CASSANDRA_PORT = 9043
+from src.config import MONGO_URI, MONGO_DATABASE, CASSANDRA_HOST, CASSANDRA_PORT, CASSANDRA_KEYSPACE
+from src.validation.validate_gkg import validate_target_date
 
 
-def aggregate_daily():
+def aggregate_daily(target_date=None):
+    if target_date is not None:
+        validate_target_date(target_date)
     mongo_client = MongoClient(MONGO_URI)
     cluster = Cluster([CASSANDRA_HOST], port=CASSANDRA_PORT)
 
     try:
-        mongo_collection = mongo_client["global_news"]["gkg_records"]
-        session = cluster.connect("global_news_analytics")
+        mongo_collection = mongo_client[MONGO_DATABASE]["gkg_records"]
+        session = cluster.connect(CASSANDRA_KEYSPACE)
+        if target_date and mongo_collection.count_documents({"date": target_date}) == 0:
+            raise ValueError(f"No hay registros para la fecha {target_date}")
+
 
         insert_query = session.prepare("""
             INSERT INTO daily_news_metrics (
@@ -35,7 +39,7 @@ def aggregate_daily():
             VALUES (?, ?, ?, ?, ?)
         """)
 
-        dates = sorted(mongo_collection.distinct("date"))
+        dates = [target_date] if target_date else sorted(mongo_collection.distinct("date"))
 
         for date_str in dates:
             print(f"\nProcesando fecha: {date_str}")
@@ -99,4 +103,9 @@ def aggregate_daily():
 
 
 if __name__ == "__main__":
-    aggregate_daily()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", help="Particion YYYYMMDD; por defecto todas las fechas")
+    args = parser.parse_args()
+    aggregate_daily(args.date)

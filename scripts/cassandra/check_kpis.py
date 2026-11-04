@@ -1,10 +1,11 @@
 
 from cassandra.cluster import Cluster
+from src.config import CASSANDRA_HOST, CASSANDRA_PORT, CASSANDRA_KEYSPACE
 
-cluster = Cluster(["127.0.0.1"], port=9043)
+cluster = Cluster([CASSANDRA_HOST], port=CASSANDRA_PORT)
 
 try:
-    session = cluster.connect("global_news_analytics")
+    session = cluster.connect(CASSANDRA_KEYSPACE)
     date = "2026-10-27"
 
     print(f"\nKPIs del {date}")

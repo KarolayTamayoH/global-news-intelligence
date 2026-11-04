@@ -1,0 +1,19 @@
+{
+  "bsonType": "object",
+  "required": ["_id", "date", "num_articles", "themes", "persons", "organizations", "sources", "source_urls", "locations_raw", "tone_raw", "counts_raw", "cameo_event_ids_raw", "source_file"],
+  "properties": {
+    "_id": {"bsonType": "string", "pattern": "^[a-f0-9]{64}$"},
+    "date": {"bsonType": "string", "pattern": "^[0-9]{8}$"},
+    "num_articles": {"bsonType": ["int", "long"], "minimum": 0},
+    "themes": {"bsonType": "array", "items": {"bsonType": "string"}},
+    "persons": {"bsonType": "array", "items": {"bsonType": "string"}},
+    "organizations": {"bsonType": "array", "items": {"bsonType": "string"}},
+    "sources": {"bsonType": "array", "items": {"bsonType": "string"}},
+    "source_urls": {"bsonType": "array", "items": {"bsonType": "string"}},
+    "locations_raw": {"bsonType": "string"},
+    "tone_raw": {"bsonType": "string"},
+    "counts_raw": {"bsonType": "string"},
+    "cameo_event_ids_raw": {"bsonType": "string"},
+    "source_file": {"bsonType": "string", "pattern": "^[0-9]{8}\\.gkg\\.csv\\.zip$"}
+  }
+}
