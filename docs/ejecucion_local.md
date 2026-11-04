@@ -1,6 +1,6 @@
 # Arranque local reproducible
 
-Ejecutar desde la raíz del repositorio. El entorno comprobado usa Python 3.14.6, Docker Desktop y Compose v2.37.1. Las dependencias directas están fijadas en `requirements.txt`; `requirements-lock.txt` registra también las dependencias transitivas del entorno local. La instalación en otra plataforma sigue requiriendo verificación. Airflow no forma parte del entorno local: Composer administra su propia versión y restricciones.
+Ejecutar desde la raíz del repositorio. El entorno comprobado usa Python 3.14.6, Docker Desktop y Compose v2.37.1. Las dependencias directas están fijadas en `requirements.txt`; `requirements-lock.txt` registra también las dependencias transitivas del entorno local. La instalación en otra plataforma sigue requiriendo verificación. La entrega es totalmente local. Airflow 2.11.1 se ejecuta en Docker con Python 3.12; el venv del Mac contiene procesamiento, dashboard y pruebas.
 
 ## 1. Entorno Python
 
@@ -40,7 +40,7 @@ python -m scripts.bootstrap_databases
 
 Compose crea servicios llamados `mongodb`, `cassandra` y `neo4j` bajo el proyecto `global-news-intelligence`, con volúmenes nuevos propios. No adopta automáticamente contenedores ni datos anteriores. Si otro servicio ocupa 27018, 9043, 7475 o 7688, detenerlo de forma consciente o cambiar los puertos de esta configuración. No ejecutar ambos stacks sobre los mismos puertos.
 
-Las imágenes predeterminadas son MongoDB 8.0, Cassandra 5.0 y Neo4j 5.26 Community. Son tags de serie, no digests inmutables; `MONGO_IMAGE`, `CASSANDRA_IMAGE` y `NEO4J_IMAGE` permiten fijar una compilación exacta. Los puertos se publican exclusivamente en 127.0.0.1 para la demostración local. MongoDB y Cassandra no tienen autenticación habilitada en este stack; su uso remoto exige otra configuración. Cassandra y Neo4j pueden tardar varios minutos en iniciar; `--wait` comprueba los healthchecks.
+Las imágenes predeterminadas son MongoDB 8.0, Cassandra 5.0 y Neo4j 5.26 Community. Son tags de serie, no digests inmutables; `MONGO_IMAGE`, `CASSANDRA_IMAGE` y `NEO4J_IMAGE` permiten fijar una compilación exacta. Los puertos se publican exclusivamente en 127.0.0.1 para la demostración local. MongoDB y Cassandra se utilizan sin autenticación adicional dentro de la red local de Docker. Cassandra y Neo4j pueden tardar varios minutos en iniciar; `--wait` comprueba los healthchecks.
 
 El bootstrap admite `--database mongodb`, `--database cassandra` o `--database neo4j`. Es repetible: aplica el validador MongoDB y crea índices, tablas y restricciones que falten. No elimina registros. En colecciones existentes, `collMod` aplica el contrato a escrituras posteriores; no certifica que los registros anteriores lo cumplan.
 
@@ -94,15 +94,56 @@ python -m streamlit run dashboard/app.py
 python -m unittest discover -s tests -v
 ```
 
-Streamlit se abre en http://localhost:8501 y consulta Cassandra. Neo4j Browser está en http://localhost:7475. Los tests usan servicios simulados: no reemplazan una comprobación de integración con contenedores.
+Streamlit se abre en http://localhost:8501 y consulta Cassandra, MongoDB y Neo4j en tres vistas. El selector de fecha filtra rankings, documentos y relaciones; el explorador documental añade filtros y paginación y el grafo muestra una muestra limitada de conexiones. Neo4j Browser está en http://localhost:7475. Los tests usan servicios simulados: no reemplazan una comprobación de integración con contenedores.
+
+## 6. Airflow local y demostración CRUD
+
+Iniciar Airflow conservando las tres bases:
+
+```bash
+python -m scripts.prepare_airflow
+docker compose --env-file .env --env-file .airflow/local.env \
+  -f compose.yaml -f compose.airflow.yaml up -d --wait --wait-timeout 600 airflow
+```
+
+Airflow está en http://localhost:8080. La contraseña generada permanece en su volumen local; no se guarda en esta documentación. El cron es 06:00 UTC (01:00 Lima), inicialmente pausado. El equipo y Docker deben permanecer activos para ejecutar la programación; las descargas nuevas necesitan Internet. Los archivos de GDELT se descargan a disco y se comparten mediante el volumen local.
+
+Ejecutar CRUD en las tres bases:
+
+```bash
+python -m scripts.crud_demo --output docs/crud_verification.json
+```
+
+Se usan `crud_demo` en MongoDB y Cassandra y nodos `CrudDemo` en Neo4j. Cada ejecución genera identificadores UUID y verifica creación, lectura, cambio de valor 1 a 2 y eliminación. Neo4j verifica además creación, actualización y eliminación de una relación. La limpieza final solo elimina esos identificadores, incluso si falla una comprobación. Las colecciones/tablas vacías de prueba se conservan para repetir la demostración.
+
+Verificar aplicación y datos reales:
+
+```bash
+python -m scripts.verify_dashboard --date 20261027
+python -m scripts.verify_partition --date 20261027 --output docs/verificacion_local.json
+```
+
+La configuración vigente está en `deploy/local.json`. Los detalles de las ocho tareas y su programación están en [airflow_local.md](airflow_local.md).
 
 ## Resultado comprobado el 3 de noviembre de 2026
 
 Se inició el stack y se repitió el bootstrap. La partición 20261027 cargó 84.723 documentos y nodos; Cassandra coincide con MongoDB en volumen, tono y todos los conteos de 8.817 temas y 66.254 organizaciones. Se reconciliaron 707.104 relaciones temáticas y 239.232 organizacionales con el límite actual del grafo. La evidencia está en [verificacion_local.json](verificacion_local.json).
 
-El stack nuevo usa volúmenes propios y contiene esta única fecha. Los cinco JSONL locales suman 323.202 registros. La verificación local no certifica instalación en otra máquina ni ejecución en Composer.
+El stack nuevo usa volúmenes propios y contiene esta única fecha. Los cinco JSONL locales suman 323.202 registros. La reproducción en una segunda máquina sigue pendiente.
 
 ## Referencias técnicas
 
 - [Docker: orden de arranque y healthchecks](https://docs.docker.com/compose/how-tos/startup-order/).
 - [MongoDB: validación de esquema](https://www.mongodb.com/docs/manual/core/schema-validation/).
+
+## Dashboard y CRUD comprobados
+
+Las tres vistas del dashboard se verificaron con bases reales y sin errores. La demostración CRUD completó creación, consulta, actualización y eliminación en las tres bases y limpió sus datos. Los conteos de los registros GKG y sus relaciones permanecieron intactos. Resultados: `docs/dashboard_verification.json`, `docs/crud_verification.json` y `docs/verificacion_local.json`.
+
+Se capturaron seis pantallas reales en Chrome. El script opcional `scripts/capture_dashboard.cjs` requiere Playwright y Chrome; esas herramientas de captura no son dependencias de la aplicación. En este equipo se ejecutó con Playwright instalado en `/tmp/gni-browser-tools`:
+
+```bash
+NODE_PATH=/tmp/gni-browser-tools/node_modules node scripts/capture_dashboard.cjs
+```
+
+Las capturas se guardan en `docs/capturas/` y se incluyen directamente en `informe.tex`. Las credenciales no se muestran en las capturas ni en los JSON.

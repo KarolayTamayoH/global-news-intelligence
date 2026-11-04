@@ -1,5 +1,5 @@
 # Dependencias directas verificadas en el entorno local Python 3.14.6.
-# Airflow/Pendulum se gestionan por separado en Composer.
+# Airflow/Pendulum se gestionan por separado en el contenedor Docker local.
 pymongo==4.19.0
 cassandra-driver==3.30.1
 neo4j==6.4.1

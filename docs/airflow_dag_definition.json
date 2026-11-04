@@ -1,0 +1,16 @@
+{
+  "airflow_version": "2.11.1",
+  "dag_id": "global_news_ingestion",
+  "schedule_utc": "0 6 * * *",
+  "tasks": [
+    "aggregate_cassandra",
+    "extract",
+    "generate_indicators",
+    "load_mongodb",
+    "load_neo4j",
+    "select_partition",
+    "transform",
+    "validate"
+  ],
+  "import_errors": 0
+}

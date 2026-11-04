@@ -38,14 +38,15 @@ def transform_record(row, source_file, row_number):
     }
 
 
-def transform_file(zip_path):
+def transform_file(zip_path, output_dir=None):
     zip_path = Path(zip_path)
 
     if not zip_path.exists():
         raise FileNotFoundError(f"No existe: {zip_path}")
 
     date = zip_path.name[:8]
-    output_path = PROCESSED_DIR / f"{date}.jsonl"
+    output_dir = Path(output_dir) if output_dir is not None else PROCESSED_DIR
+    output_path = output_dir / f"{date}.jsonl"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     processed = 0

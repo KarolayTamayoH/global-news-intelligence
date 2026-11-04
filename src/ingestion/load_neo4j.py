@@ -44,7 +44,7 @@ def save_batch(tx, records):
     tx.run(query, records=records).consume()
 
 
-def load_neo4j(target_date, limit=None):
+def load_neo4j(target_date, limit=None, force=False):
     if not NEO4J_PASSWORD:
         raise ValueError(
             "Configura la variable de entorno NEO4J_PASSWORD"
@@ -70,7 +70,7 @@ def load_neo4j(target_date, limit=None):
         history = database["neo4j_ingestion_history"]
 
         # Evitar repetir una carga completa
-        if limit is None:
+        if limit is None and not force:
             previous = history.find_one({"_id": target_date})
 
             if previous and previous.get("status") == "completed":
@@ -215,6 +215,7 @@ if __name__ == "__main__":
         help="Limite opcional para pruebas"
     )
 
+    parser.add_argument("--force", action="store_true", help="Repetir MERGE aunque exista historial completo")
     args = parser.parse_args()
 
-    load_neo4j(args.date, args.limit)
+    load_neo4j(args.date, args.limit, force=args.force)

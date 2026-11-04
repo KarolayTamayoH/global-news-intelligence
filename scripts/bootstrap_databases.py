@@ -35,9 +35,10 @@ def bootstrap_mongodb():
             database.command('collMod', 'gkg_records', **options)
         database['gkg_records'].create_index([('date', 1), ('_id', 1)], name='date_id')
         database['gkg_records'].create_index('source_file', name='source_file')
-        for name in ['ingestion_history', 'neo4j_ingestion_history']:
+        for name in ['ingestion_history', 'neo4j_ingestion_history', 'pipeline_history']:
             if name not in database.list_collection_names():
                 database.create_collection(name)
+        database['pipeline_history'].create_index([('date', 1), ('started_at', -1)], name='date_started')
         database['ingestion_history'].create_index([('date', 1), ('status', 1)], name='date_status')
     print('MongoDB: esquema e indices listos')
 

@@ -1,0 +1,13 @@
+{
+  "status": "verified",
+  "url": "http://localhost:8501",
+  "screenshots": [
+    "panorama.png",
+    "indicadores.png",
+    "temas.png",
+    "organizaciones.png",
+    "documentos.png",
+    "relaciones.png"
+  ],
+  "page_errors": []
+}

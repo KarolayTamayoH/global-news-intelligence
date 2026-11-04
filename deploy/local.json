@@ -1,0 +1,15 @@
+{
+  "deployment_target": "local",
+  "decision_source": "user",
+  "airflow_url": "http://localhost:8080",
+  "dashboard_url": "http://localhost:8501",
+  "compose_files": [
+    "compose.yaml",
+    "compose.airflow.yaml"
+  ],
+  "artifact_storage": "file:///opt/gni/data",
+  "host_data_directory": "./data",
+  "schedule_utc": "0 6 * * *",
+  "schedule_lima": "01:00",
+  "schedule_activation": "pending"
+}

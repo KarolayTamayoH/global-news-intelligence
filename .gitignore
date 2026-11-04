@@ -14,3 +14,13 @@ README.md
 instrucciones_proyecto.md
 informe.tex
 informe.pdf
+data/runs/
+.airflow/
+
+
+# Archivos auxiliares generados por LaTeX/IDE.
+/informe.aux
+/informe.log
+/informe.out
+/informe.synctex.gz
+/informe.toc

@@ -13,7 +13,7 @@ class BootstrapTests(unittest.TestCase):
         client = MagicMock()
         database = client.__enter__.return_value.__getitem__.return_value
         database.list_collection_names.return_value = [
-            'gkg_records', 'ingestion_history', 'neo4j_ingestion_history']
+            'gkg_records', 'ingestion_history', 'neo4j_ingestion_history', 'pipeline_history']
         with patch.object(bootstrap, 'MongoClient', return_value=client):
             bootstrap.bootstrap_mongodb()
             bootstrap.bootstrap_mongodb()
@@ -46,7 +46,7 @@ class BootstrapTests(unittest.TestCase):
         record['num_articles'] = '1'
         self.assertTrue(list(validator.iter_errors(record)))
         self.assertEqual(len(bootstrap.ddl_statements(ROOT / 'scripts/cassandra/schema.cql')), 4)
-        self.assertEqual(len(bootstrap.ddl_statements(ROOT / 'scripts/neo4j/schema.cypher')), 3)
+        self.assertEqual(len(bootstrap.ddl_statements(ROOT / 'scripts/neo4j/schema.cypher')), 4)
 
 
 if __name__ == '__main__':

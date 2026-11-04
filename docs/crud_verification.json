@@ -1,0 +1,43 @@
+{
+  "status": "verified",
+  "databases": {
+    "mongodb": {
+      "id": "crud-f6fc78dd744a4edaa6885770889048ce",
+      "create": true,
+      "read": true,
+      "update": true,
+      "delete": true,
+      "values": [
+        1,
+        2
+      ],
+      "test_data_removed": true
+    },
+    "cassandra": {
+      "id": "94095953-783c-42f9-863b-d2b9177542f6",
+      "create": true,
+      "read": true,
+      "update": true,
+      "delete": true,
+      "values": [
+        1,
+        2
+      ],
+      "test_data_removed": true
+    },
+    "neo4j": {
+      "id": "crud-07bd296df7b247a9a851520a5d8d9fe0",
+      "create": true,
+      "create_relationship": true,
+      "read": true,
+      "update": true,
+      "delete_relationship": true,
+      "delete": true,
+      "values": [
+        1,
+        2
+      ],
+      "test_data_removed": true
+    }
+  }
+}

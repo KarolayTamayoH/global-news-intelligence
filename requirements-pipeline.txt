@@ -1,0 +1,5 @@
+# Clientes del pipeline para la imagen local de Airflow; sin dependencias del dashboard.
+pymongo==4.19.0
+cassandra-driver==3.30.1
+neo4j==6.4.1
+

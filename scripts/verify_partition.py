@@ -54,6 +54,11 @@ def verify_partition(target_date):
             "WHERE metric_group='global' AND news_date=%s", (news_date,)).one()
         if daily is None or daily.total_records != records or daily.unique_themes != len(themes):
             raise ValueError('Metricas diarias Cassandra distintas de MongoDB')
+        previous = session.execute(
+            "SELECT total_records FROM daily_news_metrics WHERE metric_group='global' "
+            "AND news_date < %s LIMIT 1", (news_date,)).one()
+        variation = (100 * (records - previous.total_records) / previous.total_records
+                     if previous and previous.total_records > 0 else None)
         expected_tone = tone_sum / tone_count if tone_count else None
         if (expected_tone is None and daily.average_tone is not None) or (
             expected_tone is not None and (daily.average_tone is None or
@@ -85,7 +90,11 @@ def verify_partition(target_date):
             'unique_themes': len(themes), 'unique_organizations': len(organizations),
             'average_tone': expected_tone, 'cassandra_records': daily.total_records,
             'cassandra_entities_match': True, 'neo4j': graph,
-            'graph_entity_limit_per_record': 10, 'status': 'verified'}
+             'graph_entity_limit_per_record': 10, 'status': 'verified',
+            'kpis': {'daily_records': records, 'variation_pct': variation,
+                     'unique_themes': len(themes), 'average_tone': expected_tone,
+                     'top_themes': sorted(themes.items(), key=lambda pair: (-pair[1], pair[0]))[:10],
+                     'top_organizations': sorted(organizations.items(), key=lambda pair: (-pair[1], pair[0]))[:10]}}
 
 
 def main():

@@ -1,0 +1,67 @@
+# Usar junto con compose.yaml: mismo proyecto y red de las bases existentes.
+services:
+  airflow-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?Configura AIRFLOW_DB_PASSWORD para Airflow local}
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow2_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  airflow:
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
+      args:
+        AIRFLOW_IMAGE: ${AIRFLOW_IMAGE:-apache/airflow:2.11.1-python3.12}
+    command: standalone
+    ports:
+      - "127.0.0.1:${AIRFLOW_PORT:-8080}:8080"
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD:?Configura AIRFLOW_DB_PASSWORD}@airflow-db/airflow"
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/gni/dags
+      AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT: "false"
+      PYTHONPATH: /opt/gni
+      MONGO_URI: mongodb://mongodb:27017/
+      MONGO_DATABASE: ${MONGO_DATABASE:-global_news}
+      CASSANDRA_HOST: cassandra
+      CASSANDRA_PORT: "9042"
+      CASSANDRA_KEYSPACE: ${CASSANDRA_KEYSPACE:-global_news_analytics}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?Configura NEO4J_PASSWORD}
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
+      GNI_DATA_DIR: /opt/gni/data
+      GNI_ARTIFACT_URI: file:///opt/gni/data
+    volumes:
+      - ./dags:/opt/gni/dags:ro
+      - ./src:/opt/gni/src:ro
+      - ./scripts:/opt/gni/scripts:ro
+      - ./docs:/opt/gni/docs
+      - ./data:/opt/gni/data
+      - airflow2_home:/opt/airflow
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/health > /dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 20
+      start_period: 90s
+volumes:
+  airflow2_postgres:
+  airflow2_home:
