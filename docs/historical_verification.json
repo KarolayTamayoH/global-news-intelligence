@@ -1,0 +1,678 @@
+{
+  "status": "verified",
+  "run_states": {
+    "historical__20261025": "success",
+    "historical__20261024": "success",
+    "historical__20261023": "success",
+    "historical__20261026": "success"
+  },
+  "total_records": 403941,
+  "partitions": [
+    {
+      "date": "20261023",
+      "mongo_records": 79349,
+      "mongo_indexes": [
+        "_id_",
+        "date_id",
+        "source_file"
+      ],
+      "unique_themes": 8850,
+      "unique_organizations": 66819,
+      "average_tone": -0.8306581236775337,
+      "cassandra_records": 79349,
+      "cassandra_entities_match": true,
+      "neo4j": {
+        "records": 79349,
+        "theme_edges": 665800,
+        "organization_edges": 226199
+      },
+      "graph_entity_limit_per_record": 10,
+      "status": "verified",
+      "kpis": {
+        "daily_records": 79349,
+        "variation_pct": null,
+        "unique_themes": 8850,
+        "average_tone": -0.8306581236775337,
+        "top_themes": [
+          [
+            "TAX_FNCACT",
+            65650
+          ],
+          [
+            "EPU_POLICY",
+            35825
+          ],
+          [
+            "TAX_ETHNICITY",
+            32271
+          ],
+          [
+            "CRISISLEX_CRISISLEXREC",
+            29925
+          ],
+          [
+            "UNGP_FORESTS_RIVERS_OCEANS",
+            27195
+          ],
+          [
+            "WB_696_PUBLIC_SECTOR_MANAGEMENT",
+            25157
+          ],
+          [
+            "TAX_WORLDLANGUAGES",
+            24135
+          ],
+          [
+            "USPEC_POLITICS_GENERAL1",
+            23405
+          ],
+          [
+            "LEADER",
+            22537
+          ],
+          [
+            "CRISISLEX_C07_SAFETY",
+            21029
+          ]
+        ],
+        "top_organizations": [
+          [
+            "united states",
+            7163
+          ],
+          [
+            "white house",
+            2526
+          ],
+          [
+            "instagram",
+            2476
+          ],
+          [
+            "associated press",
+            2393
+          ],
+          [
+            "facebook",
+            1924
+          ],
+          [
+            "reuters",
+            1909
+          ],
+          [
+            "google",
+            1832
+          ],
+          [
+            "justice department",
+            1241
+          ],
+          [
+            "supreme court",
+            1230
+          ],
+          [
+            "cnn",
+            1011
+          ]
+        ]
+      }
+    },
+    {
+      "date": "20261024",
+      "mongo_records": 47019,
+      "mongo_indexes": [
+        "_id_",
+        "date_id",
+        "source_file"
+      ],
+      "unique_themes": 7809,
+      "unique_organizations": 41376,
+      "average_tone": -1.0620826826420477,
+      "cassandra_records": 47019,
+      "cassandra_entities_match": true,
+      "neo4j": {
+        "records": 47019,
+        "theme_edges": 383941,
+        "organization_edges": 132090
+      },
+      "graph_entity_limit_per_record": 10,
+      "status": "verified",
+      "kpis": {
+        "daily_records": 47019,
+        "variation_pct": -40.74405474549144,
+        "unique_themes": 7809,
+        "average_tone": -1.0620826826420477,
+        "top_themes": [
+          [
+            "TAX_FNCACT",
+            37779
+          ],
+          [
+            "EPU_POLICY",
+            21978
+          ],
+          [
+            "TAX_ETHNICITY",
+            19572
+          ],
+          [
+            "CRISISLEX_CRISISLEXREC",
+            18922
+          ],
+          [
+            "UNGP_FORESTS_RIVERS_OCEANS",
+            16410
+          ],
+          [
+            "TAX_WORLDLANGUAGES",
+            15260
+          ],
+          [
+            "LEADER",
+            14104
+          ],
+          [
+            "USPEC_POLITICS_GENERAL1",
+            14030
+          ],
+          [
+            "WB_696_PUBLIC_SECTOR_MANAGEMENT",
+            13905
+          ],
+          [
+            "GENERAL_GOVERNMENT",
+            13488
+          ]
+        ],
+        "top_organizations": [
+          [
+            "united states",
+            4330
+          ],
+          [
+            "associated press",
+            1836
+          ],
+          [
+            "white house",
+            1689
+          ],
+          [
+            "reuters",
+            1173
+          ],
+          [
+            "google",
+            1127
+          ],
+          [
+            "instagram",
+            1127
+          ],
+          [
+            "facebook",
+            955
+          ],
+          [
+            "united nations",
+            755
+          ],
+          [
+            "supreme court",
+            737
+          ],
+          [
+            "national grid",
+            566
+          ]
+        ]
+      }
+    },
+    {
+      "date": "20261025",
+      "mongo_records": 40228,
+      "mongo_indexes": [
+        "_id_",
+        "date_id",
+        "source_file"
+      ],
+      "unique_themes": 7476,
+      "unique_organizations": 33149,
+      "average_tone": -1.1232070491772757,
+      "cassandra_records": 40228,
+      "cassandra_entities_match": true,
+      "neo4j": {
+        "records": 40228,
+        "theme_edges": 325262,
+        "organization_edges": 106079
+      },
+      "graph_entity_limit_per_record": 10,
+      "status": "verified",
+      "kpis": {
+        "daily_records": 40228,
+        "variation_pct": -14.443097471235033,
+        "unique_themes": 7476,
+        "average_tone": -1.1232070491772757,
+        "top_themes": [
+          [
+            "TAX_FNCACT",
+            31832
+          ],
+          [
+            "EPU_POLICY",
+            17737
+          ],
+          [
+            "CRISISLEX_CRISISLEXREC",
+            16979
+          ],
+          [
+            "TAX_ETHNICITY",
+            16783
+          ],
+          [
+            "UNGP_FORESTS_RIVERS_OCEANS",
+            14202
+          ],
+          [
+            "LEADER",
+            12460
+          ],
+          [
+            "USPEC_POLITICS_GENERAL1",
+            12275
+          ],
+          [
+            "TAX_WORLDLANGUAGES",
+            12202
+          ],
+          [
+            "WB_696_PUBLIC_SECTOR_MANAGEMENT",
+            11713
+          ],
+          [
+            "GENERAL_GOVERNMENT",
+            11421
+          ]
+        ],
+        "top_organizations": [
+          [
+            "united states",
+            3314
+          ],
+          [
+            "white house",
+            1559
+          ],
+          [
+            "google",
+            1135
+          ],
+          [
+            "associated press",
+            1073
+          ],
+          [
+            "facebook",
+            917
+          ],
+          [
+            "instagram",
+            792
+          ],
+          [
+            "supreme court",
+            790
+          ],
+          [
+            "reuters",
+            761
+          ],
+          [
+            "network rail",
+            705
+          ],
+          [
+            "u s senate",
+            691
+          ]
+        ]
+      }
+    },
+    {
+      "date": "20261026",
+      "mongo_records": 71883,
+      "mongo_indexes": [
+        "_id_",
+        "date_id",
+        "source_file"
+      ],
+      "unique_themes": 8554,
+      "unique_organizations": 59500,
+      "average_tone": -0.6736493830952129,
+      "cassandra_records": 71883,
+      "cassandra_entities_match": true,
+      "neo4j": {
+        "records": 71883,
+        "theme_edges": 593228,
+        "organization_edges": 207829
+      },
+      "graph_entity_limit_per_record": 10,
+      "status": "verified",
+      "kpis": {
+        "daily_records": 71883,
+        "variation_pct": 78.68897285472805,
+        "unique_themes": 8554,
+        "average_tone": -0.6736493830952129,
+        "top_themes": [
+          [
+            "TAX_FNCACT",
+            58332
+          ],
+          [
+            "EPU_POLICY",
+            33135
+          ],
+          [
+            "TAX_ETHNICITY",
+            29568
+          ],
+          [
+            "CRISISLEX_CRISISLEXREC",
+            27161
+          ],
+          [
+            "UNGP_FORESTS_RIVERS_OCEANS",
+            25775
+          ],
+          [
+            "WB_696_PUBLIC_SECTOR_MANAGEMENT",
+            23044
+          ],
+          [
+            "USPEC_POLITICS_GENERAL1",
+            21905
+          ],
+          [
+            "LEADER",
+            21781
+          ],
+          [
+            "TAX_WORLDLANGUAGES",
+            21366
+          ],
+          [
+            "GENERAL_GOVERNMENT",
+            19754
+          ]
+        ],
+        "top_organizations": [
+          [
+            "united states",
+            6862
+          ],
+          [
+            "instagram",
+            2468
+          ],
+          [
+            "supreme court",
+            2317
+          ],
+          [
+            "white house",
+            2124
+          ],
+          [
+            "associated press",
+            1897
+          ],
+          [
+            "google",
+            1890
+          ],
+          [
+            "australian associated",
+            1824
+          ],
+          [
+            "reuters",
+            1701
+          ],
+          [
+            "facebook",
+            1505
+          ],
+          [
+            "justice department",
+            1083
+          ]
+        ]
+      }
+    },
+    {
+      "date": "20261027",
+      "mongo_records": 84723,
+      "mongo_indexes": [
+        "_id_",
+        "date_id",
+        "source_file"
+      ],
+      "unique_themes": 8817,
+      "unique_organizations": 66254,
+      "average_tone": -0.6621133004352675,
+      "cassandra_records": 84723,
+      "cassandra_entities_match": true,
+      "neo4j": {
+        "records": 84723,
+        "theme_edges": 707104,
+        "organization_edges": 239232
+      },
+      "graph_entity_limit_per_record": 10,
+      "status": "verified",
+      "kpis": {
+        "daily_records": 84723,
+        "variation_pct": 17.8623596677935,
+        "unique_themes": 8817,
+        "average_tone": -0.6621133004352675,
+        "top_themes": [
+          [
+            "TAX_FNCACT",
+            69748
+          ],
+          [
+            "EPU_POLICY",
+            38120
+          ],
+          [
+            "TAX_ETHNICITY",
+            32797
+          ],
+          [
+            "CRISISLEX_CRISISLEXREC",
+            31184
+          ],
+          [
+            "UNGP_FORESTS_RIVERS_OCEANS",
+            28849
+          ],
+          [
+            "WB_696_PUBLIC_SECTOR_MANAGEMENT",
+            28254
+          ],
+          [
+            "USPEC_POLITICS_GENERAL1",
+            25821
+          ],
+          [
+            "TAX_WORLDLANGUAGES",
+            24801
+          ],
+          [
+            "LEADER",
+            24115
+          ],
+          [
+            "CRISISLEX_C07_SAFETY",
+            22528
+          ]
+        ],
+        "top_organizations": [
+          [
+            "united states",
+            7900
+          ],
+          [
+            "instagram",
+            2830
+          ],
+          [
+            "associated press",
+            2487
+          ],
+          [
+            "supreme court",
+            2459
+          ],
+          [
+            "australian associated",
+            2128
+          ],
+          [
+            "white house",
+            2112
+          ],
+          [
+            "google",
+            1914
+          ],
+          [
+            "reuters",
+            1809
+          ],
+          [
+            "facebook",
+            1766
+          ],
+          [
+            "disney",
+            1630
+          ]
+        ]
+      }
+    },
+    {
+      "date": "20261106",
+      "mongo_records": 80739,
+      "mongo_indexes": [
+        "_id_",
+        "date_id",
+        "source_file"
+      ],
+      "unique_themes": 8626,
+      "unique_organizations": 65465,
+      "average_tone": -0.7600911459873575,
+      "cassandra_records": 80739,
+      "cassandra_entities_match": true,
+      "neo4j": {
+        "records": 80739,
+        "theme_edges": 679258,
+        "organization_edges": 235993
+      },
+      "graph_entity_limit_per_record": 10,
+      "status": "verified",
+      "kpis": {
+        "daily_records": 80739,
+        "variation_pct": -4.70238306008994,
+        "unique_themes": 8626,
+        "average_tone": -0.7600911459873575,
+        "top_themes": [
+          [
+            "TAX_FNCACT",
+            67347
+          ],
+          [
+            "EPU_POLICY",
+            37247
+          ],
+          [
+            "TAX_ETHNICITY",
+            32783
+          ],
+          [
+            "CRISISLEX_CRISISLEXREC",
+            29963
+          ],
+          [
+            "UNGP_FORESTS_RIVERS_OCEANS",
+            28235
+          ],
+          [
+            "WB_696_PUBLIC_SECTOR_MANAGEMENT",
+            25942
+          ],
+          [
+            "USPEC_POLITICS_GENERAL1",
+            25614
+          ],
+          [
+            "LEADER",
+            23732
+          ],
+          [
+            "TAX_WORLDLANGUAGES",
+            22855
+          ],
+          [
+            "SOC_POINTSOFINTEREST",
+            21894
+          ]
+        ],
+        "top_organizations": [
+          [
+            "united states",
+            7557
+          ],
+          [
+            "white house",
+            3514
+          ],
+          [
+            "associated press",
+            3251
+          ],
+          [
+            "instagram",
+            2104
+          ],
+          [
+            "nasdaq",
+            2102
+          ],
+          [
+            "australian associated",
+            1951
+          ],
+          [
+            "google",
+            1759
+          ],
+          [
+            "supreme court",
+            1682
+          ],
+          [
+            "reuters",
+            1632
+          ],
+          [
+            "facebook",
+            1591
+          ]
+        ]
+      }
+    }
+  ]
+}

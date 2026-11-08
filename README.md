@@ -7,14 +7,15 @@ Plataforma académica de análisis de registros GDELT GKG mediante MongoDB, Cass
 ## Estado comprobado
 
 - DAG de ocho tareas importado y ejecutado dos veces en Airflow 2.11.1 local: todas las tareas en `success`, sin duplicados al repetir.
-- 84.723 registros del **27 de octubre de 2026** reconciliados en las tres bases del stack actual.
+- **403.941 registros en seis fechas** reconciliados en las tres bases: 23–27 de octubre y 6 de noviembre de 2026. Evidencia: [`docs/historical_verification.json`](docs/historical_verification.json).
 - Dashboard con tres vistas conectadas: indicadores Cassandra, documentos MongoDB y relaciones Neo4j.
 - CRUD ejecutado y verificado en las tres bases con UUID propios y limpieza de datos de prueba.
 - 28 pruebas automatizadas aprobadas y comprobación de la aplicación con bases reales, sin errores.
 - Capturas reales del navegador e informe LaTeX/PDF actualizados.
-- **Pendiente:** activar y observar una ejecución programada del scheduler, ampliar histórico coherente, revisar rendimiento y completar video/entrega.
+- **Scheduler verificado:** ejecución programada real, ocho tareas exitosas y 80.739 registros del 6 de noviembre reconciliados.
+- **Pendiente:** recuperación ante fallos parciales, rendimiento, reproducibilidad en otro equipo y video/entrega.
 
-Los cinco JSONL locales de 20261023–20261027 suman **323.202 registros**. Ese volumen de archivos no es el conteo de las bases actuales, que contienen la partición verificada de 84.723 registros. Un registro GKG no equivale a un artículo único.
+Los cinco JSONL locales de 20261023–20261027 suman **323.202 registros**. Las bases actuales contienen esos registros y otros 80.739 del 6 de noviembre descargados por el scheduler: 403.941 en total. Un registro GKG no equivale a un artículo único.
 
 ## Arquitectura local
 
@@ -91,7 +92,7 @@ Guía detallada: [`docs/ejecucion_local.md`](docs/ejecucion_local.md).
 - Cron `0 6 * * *`: 06:00 UTC / 01:00 Lima. El equipo y Docker deben estar activos; GDELT requiere Internet para nuevas descargas.
 - Fecha automática: día anterior al fin del intervalo UTC. Para pruebas manuales se usa `{"target_date":"20261027"}`.
 - Dos reintentos separados por cinco minutos, máximo una ejecución activa y `catchup=False`.
-- **DAG inicialmente pausado:** dos pruebas con `dag.test()` no equivalen a una ejecución cron observada.
+- **DAG activo:** ejecución `scheduled__2026-11-06T06:00:00+00:00` verificada; evidencia en [`docs/airflow_scheduled_verification.json`](docs/airflow_scheduled_verification.json).
 - XCom transporta metadatos y rutas, no ZIP/JSONL. Las tareas recuperan sus archivos desde el volumen compartido y usan temporales locales.
 - `pipeline_history` registra etapas y solo marca `completed` después de reconciliar las tres bases y publicar los seis indicadores.
 
@@ -136,7 +137,7 @@ También admite `--database mongodb`, `--database cassandra` o `--database neo4j
 | Tono | Promedio del primer componente numérico de `tone_raw` |
 | Top 10 organizaciones | Registros que contienen cada organización; deduplicación por registro |
 
-Para 20261027 se comprobaron 84.723 registros, 8.817 temas distintos, 66.254 organizaciones distintas y tono medio −0,6621133004352675. Neo4j conserva 707.104 relaciones HAS_THEME y 239.232 MENTIONS_ORG. Con una sola fecha cargada, la variación es N/D y las líneas muestran un único punto.
+Para 20261027 se comprobaron 84.723 registros, 8.817 temas distintos, 66.254 organizaciones distintas y tono medio −0,6621133004352675. Neo4j conserva 707.104 relaciones HAS_THEME y 239.232 MENTIONS_ORG. El histórico actual tiene seis fechas; la variación del 6 de noviembre respecto a la fecha anterior disponible, 27 de octubre, es −4,70 %. No hay datos cargados para las fechas intermedias.
 
 ## Pruebas y evidencias
 
@@ -171,7 +172,7 @@ La suite usa datos sintéticos y clientes simulados; los dos últimos comandos n
 
 ## Limitaciones y cierre
 
-Quedan la ejecución programada observada, la ampliación coherente del histórico en las tres bases, pruebas de recuperación/rendimiento y el video de 20–25 minutos con todos los integrantes. La entrega del curso es el **17 de noviembre de 2026**.
+Quedan las pruebas de recuperación/rendimiento, la reproducción en otro equipo, la actualización de capturas e informe y el video de 20–25 minutos con todos los integrantes. La entrega del curso es el **17 de noviembre de 2026**.
 
 El reemplazo de agregados de entidades en Cassandra usa DELETE + INSERT y puede presentar lecturas parciales. Los rankings se ordenan en Python. Los identificadores documentales dependen de archivo y fila; el contrato asume archivos diarios inmutables. El grafo está truncado y los conteos no prueban la identidad de cada arista. La reproducción en una segunda máquina sigue pendiente.
 

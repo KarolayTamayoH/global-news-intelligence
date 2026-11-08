@@ -11,5 +11,6 @@
   "host_data_directory": "./data",
   "schedule_utc": "0 6 * * *",
   "schedule_lima": "01:00",
-  "schedule_activation": "pending"
+  "schedule_activation": "verified",
+  "schedule_evidence": "docs/airflow_scheduled_verification.json"
 }

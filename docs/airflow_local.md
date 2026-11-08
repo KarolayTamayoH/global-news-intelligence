@@ -25,7 +25,7 @@ Las ocho tareas usan TaskFlow. Las etapas de negocio están en `src/pipeline/tas
 - Se procesa el día anterior al **fin del intervalo** en UTC. Un intervalo que termina el 28 de octubre a las 06:00 procesa `20261027`.
 - La configuración manual `{"target_date":"20261027"}` tiene prioridad.
 - Hay dos reintentos separados por cinco minutos, una ejecución activa y `catchup=False`.
-- El DAG se crea pausado. El cron está configurado, pero todavía falta activar y observar una ejecución disparada por el scheduler.
+- El DAG se crea pausado. Se activó y se verificó una ejecución real del scheduler: `scheduled__2026-11-06T06:00:00+00:00`, con ocho tareas exitosas y 80.739 registros del 6 de noviembre reconciliados. Evidencia: [ejecución programada](airflow_scheduled_verification.json).
 
 El Mac y Docker deben permanecer activos para ejecutar el cron. Las descargas nuevas necesitan Internet y dependen de la disponibilidad de GDELT.
 
@@ -97,3 +97,27 @@ La guía general de bases, dashboard y CRUD está en [ejecucion_local.md](ejecuc
 - [Apache Airflow 2.11.1](https://airflow.apache.org/docs/apache-airflow/2.11.1/).
 - [Airflow en Docker](https://airflow.apache.org/docs/apache-airflow/2.11.1/howto/docker-compose/index.html).
 
+## Verificación de una ejecución programada
+
+El verificador siguiente consulta los metadatos de Airflow y acepta únicamente
+una ejecución de tipo `scheduled`, con las ocho tareas exitosas, historial
+`completed` y reconciliación vigente de las tres bases. Si la ejecución sigue en
+curso o falló, termina con error sin generar una evidencia nueva.
+
+```bash
+docker compose --env-file .env --env-file .airflow/local.env \
+  -f compose.yaml -f compose.airflow.yaml exec -T airflow \
+  python -m scripts.verify_scheduled_run \
+  --output docs/airflow_scheduled_verification.json
+```
+
+Se puede indicar `--run-id` para verificar una ejecución programada concreta.
+Sin ese argumento se comprueba la más reciente, aunque todavía esté en curso.
+
+### Reinicio del servidor web
+
+El volumen de Airflow conserva `airflow-webserver.pid` al detener Docker. Se
+observó que ese PID obsoleto impedía iniciar Gunicorn aunque el scheduler seguía
+procesando tareas. El comando de arranque de Compose elimina únicamente ese
+archivo antes de ejecutar `airflow standalone`, cuando aún no hay servidor web
+activo dentro del nuevo arranque. No elimina metadatos ni datos del pipeline.
