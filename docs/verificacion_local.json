@@ -17,5 +17,95 @@
     "organization_edges": 239232
   },
   "graph_entity_limit_per_record": 10,
-  "status": "verified"
+  "status": "verified",
+  "kpis": {
+    "daily_records": 84723,
+    "variation_pct": null,
+    "unique_themes": 8817,
+    "average_tone": -0.6621133004352675,
+    "top_themes": [
+      [
+        "TAX_FNCACT",
+        69748
+      ],
+      [
+        "EPU_POLICY",
+        38120
+      ],
+      [
+        "TAX_ETHNICITY",
+        32797
+      ],
+      [
+        "CRISISLEX_CRISISLEXREC",
+        31184
+      ],
+      [
+        "UNGP_FORESTS_RIVERS_OCEANS",
+        28849
+      ],
+      [
+        "WB_696_PUBLIC_SECTOR_MANAGEMENT",
+        28254
+      ],
+      [
+        "USPEC_POLITICS_GENERAL1",
+        25821
+      ],
+      [
+        "TAX_WORLDLANGUAGES",
+        24801
+      ],
+      [
+        "LEADER",
+        24115
+      ],
+      [
+        "CRISISLEX_C07_SAFETY",
+        22528
+      ]
+    ],
+    "top_organizations": [
+      [
+        "united states",
+        7900
+      ],
+      [
+        "instagram",
+        2830
+      ],
+      [
+        "associated press",
+        2487
+      ],
+      [
+        "supreme court",
+        2459
+      ],
+      [
+        "australian associated",
+        2128
+      ],
+      [
+        "white house",
+        2112
+      ],
+      [
+        "google",
+        1914
+      ],
+      [
+        "reuters",
+        1809
+      ],
+      [
+        "facebook",
+        1766
+      ],
+      [
+        "disney",
+        1630
+      ]
+    ]
+  }
 }

@@ -9,11 +9,25 @@ from src.validation.validate_gkg import EXPECTED_COLUMNS
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_cassandra_migration_adds_missing_column_only_once(self):
+        cluster = MagicMock()
+        session = cluster.connect.return_value
+        session.execute.return_value.one.side_effect = [None, object()]
+        with patch.object(bootstrap, 'Cluster', return_value=cluster):
+            bootstrap.bootstrap_cassandra()
+            bootstrap.bootstrap_cassandra()
+        alterations = [call.args[0] for call in session.execute.call_args_list
+                       if call.args[0].startswith('ALTER TABLE')]
+        self.assertEqual(len(alterations), 1)
+        self.assertTrue(alterations[0].endswith('ADD generation uuid'))
+        self.assertFalse(any('DROP ' in call.args[0] or 'TRUNCATE ' in call.args[0]
+                             for call in session.execute.call_args_list))
+
     def test_mongodb_repeat_preserves_existing_collections(self):
         client = MagicMock()
         database = client.__enter__.return_value.__getitem__.return_value
         database.list_collection_names.return_value = [
-            'gkg_records', 'ingestion_history', 'neo4j_ingestion_history']
+            'gkg_records', 'ingestion_history', 'neo4j_ingestion_history', 'pipeline_history']
         with patch.object(bootstrap, 'MongoClient', return_value=client):
             bootstrap.bootstrap_mongodb()
             bootstrap.bootstrap_mongodb()
@@ -45,8 +59,8 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(list(validator.iter_errors(record)), [])
         record['num_articles'] = '1'
         self.assertTrue(list(validator.iter_errors(record)))
-        self.assertEqual(len(bootstrap.ddl_statements(ROOT / 'scripts/cassandra/schema.cql')), 4)
-        self.assertEqual(len(bootstrap.ddl_statements(ROOT / 'scripts/neo4j/schema.cypher')), 3)
+        self.assertEqual(len(bootstrap.ddl_statements(ROOT / 'scripts/cassandra/schema.cql')), 6)
+        self.assertEqual(len(bootstrap.ddl_statements(ROOT / 'scripts/neo4j/schema.cypher')), 4)
 
 
 if __name__ == '__main__':

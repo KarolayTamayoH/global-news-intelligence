@@ -10,3 +10,7 @@ REQUIRE t.name IS UNIQUE;
 CREATE CONSTRAINT organization_name IF NOT EXISTS
 FOR (o:Organization)
 REQUIRE o.name IS UNIQUE;
+
+CREATE INDEX gkg_record_date IF NOT EXISTS
+FOR (r:GKGRecord)
+ON (r.date);

@@ -35,9 +35,10 @@ def bootstrap_mongodb():
             database.command('collMod', 'gkg_records', **options)
         database['gkg_records'].create_index([('date', 1), ('_id', 1)], name='date_id')
         database['gkg_records'].create_index('source_file', name='source_file')
-        for name in ['ingestion_history', 'neo4j_ingestion_history']:
+        for name in ['ingestion_history', 'neo4j_ingestion_history', 'pipeline_history']:
             if name not in database.list_collection_names():
                 database.create_collection(name)
+        database['pipeline_history'].create_index([('date', 1), ('started_at', -1)], name='date_started')
         database['ingestion_history'].create_index([('date', 1), ('status', 1)], name='date_status')
     print('MongoDB: esquema e indices listos')
 
@@ -48,6 +49,12 @@ def bootstrap_cassandra():
         session = cluster.connect()
         for query in ddl_statements(ROOT / 'scripts/cassandra/schema.cql'):
             session.execute(query.replace('global_news_analytics', CASSANDRA_KEYSPACE))
+        column = session.execute(
+            "SELECT column_name FROM system_schema.columns WHERE keyspace_name=%s "
+            "AND table_name='daily_news_metrics' AND column_name='generation'",
+            (CASSANDRA_KEYSPACE,)).one()
+        if column is None:
+            session.execute(f'ALTER TABLE {CASSANDRA_KEYSPACE}.daily_news_metrics ADD generation uuid')
     finally:
         cluster.shutdown()
     print('Cassandra: keyspace y tablas listos')

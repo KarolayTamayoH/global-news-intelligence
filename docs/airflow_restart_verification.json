@@ -1,0 +1,24 @@
+{
+  "status": "verified",
+  "verified_at": "2026-11-08T05:34:41.061627+00:00",
+  "webserver_http_status": 200,
+  "dag_paused": false,
+  "health": {
+    "dag_processor": {
+      "latest_dag_processor_heartbeat": null,
+      "status": null
+    },
+    "metadatabase": {
+      "status": "healthy"
+    },
+    "scheduler": {
+      "latest_scheduler_heartbeat": "2026-11-08T05:34:39.201869+00:00",
+      "status": "healthy"
+    },
+    "triggerer": {
+      "latest_triggerer_heartbeat": "2026-11-08T05:34:39.194105+00:00",
+      "status": "healthy"
+    }
+  },
+  "compose_restart_verified": true
+}

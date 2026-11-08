@@ -3,14 +3,12 @@
 #Renombrar el archivo temporal únicamente cuando pase la validación.
 import re
 import zipfile
+from pathlib import Path
 from src.config import RAW_DIR
 from urllib.request import Request, urlopen
 
 INDEX_URL = "https://data.gdeltproject.org/gkg/index.html"
 BASE_URL = "https://data.gdeltproject.org/gkg/"
-
-RAW_DIR.mkdir(parents=True, exist_ok=True)
-
 
 def get_available_files():
     request = Request(
@@ -46,12 +44,14 @@ def validate_zip(path, filename):
         return False
 
 
-def download_file(filename):
+def download_file(filename, raw_dir=None):
     if not re.fullmatch(r"\d{8}\.gkg\.csv\.zip", filename):
         raise ValueError(f"Nombre de archivo invalido: {filename}")
 
-    destination = RAW_DIR / filename
-    temporary = RAW_DIR / f"{filename}.part"
+    raw_dir = Path(raw_dir) if raw_dir is not None else RAW_DIR
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    destination = raw_dir / filename
+    temporary = raw_dir / f"{filename}.part"
 
     if destination.exists():
         if validate_zip(destination, filename):

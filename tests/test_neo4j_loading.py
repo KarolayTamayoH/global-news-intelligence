@@ -5,7 +5,7 @@ from src.ingestion import load_neo4j as loader
 
 
 class Neo4jLoadingTests(unittest.TestCase):
-    def run_load(self, expected, stored, previous=None):
+    def run_load(self, expected, stored, previous=None, force=False):
         mongo = MagicMock()
         database = mongo.__getitem__.return_value
         collection = MagicMock()
@@ -23,7 +23,7 @@ class Neo4jLoadingTests(unittest.TestCase):
              patch.object(loader, 'MongoClient', return_value=mongo), \
              patch.object(loader.GraphDatabase, 'driver', return_value=driver):
             try:
-                loader.load_neo4j('20261027')
+                loader.load_neo4j('20261027', force=force)
             finally:
                 self.history = history
                 self.session = session
@@ -34,6 +34,11 @@ class Neo4jLoadingTests(unittest.TestCase):
         self.run_load(expected=2, stored=2)
         self.session.run.assert_called_once()
         self.history.update_one.assert_called_once()
+
+    def test_force_reloads_despite_completed_history(self):
+        self.run_load(expected=2, stored=2, previous={'status': 'completed'}, force=True)
+        self.session.execute_write.assert_called_once()
+        self.session.run.assert_called_once()
 
     def test_mismatch_does_not_mark_completed(self):
         with self.assertRaisesRegex(ValueError, 'Neo4j contiene 1'):

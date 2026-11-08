@@ -1,0 +1,133 @@
+{
+  "dag_id": "global_news_ingestion",
+  "run_id": "scheduled__2026-11-06T06:00:00+00:00",
+  "run_type": "scheduled",
+  "state": "success",
+  "verified_at": "2026-11-08T05:30:01.860041+00:00",
+  "started_at": "2026-11-08T05:22:31.954407+00:00",
+  "ended_at": "2026-11-08T05:25:11.546878+00:00",
+  "data_interval_start": "2026-11-06T06:00:00+00:00",
+  "data_interval_end": "2026-11-07T06:00:00+00:00",
+  "task_states": {
+    "transform": "success",
+    "select_partition": "success",
+    "validate": "success",
+    "extract": "success",
+    "load_mongodb": "success",
+    "aggregate_cassandra": "success",
+    "load_neo4j": "success",
+    "generate_indicators": "success"
+  },
+  "verification": {
+    "date": "20261106",
+    "mongo_records": 80739,
+    "mongo_indexes": [
+      "_id_",
+      "date_id",
+      "source_file"
+    ],
+    "unique_themes": 8626,
+    "unique_organizations": 65465,
+    "average_tone": -0.7600911459873575,
+    "cassandra_records": 80739,
+    "cassandra_entities_match": true,
+    "neo4j": {
+      "records": 80739,
+      "theme_edges": 679258,
+      "organization_edges": 235993
+    },
+    "graph_entity_limit_per_record": 10,
+    "status": "verified",
+    "kpis": {
+      "daily_records": 80739,
+      "variation_pct": -4.70238306008994,
+      "unique_themes": 8626,
+      "average_tone": -0.7600911459873575,
+      "top_themes": [
+        [
+          "TAX_FNCACT",
+          67347
+        ],
+        [
+          "EPU_POLICY",
+          37247
+        ],
+        [
+          "TAX_ETHNICITY",
+          32783
+        ],
+        [
+          "CRISISLEX_CRISISLEXREC",
+          29963
+        ],
+        [
+          "UNGP_FORESTS_RIVERS_OCEANS",
+          28235
+        ],
+        [
+          "WB_696_PUBLIC_SECTOR_MANAGEMENT",
+          25942
+        ],
+        [
+          "USPEC_POLITICS_GENERAL1",
+          25614
+        ],
+        [
+          "LEADER",
+          23732
+        ],
+        [
+          "TAX_WORLDLANGUAGES",
+          22855
+        ],
+        [
+          "SOC_POINTSOFINTEREST",
+          21894
+        ]
+      ],
+      "top_organizations": [
+        [
+          "united states",
+          7557
+        ],
+        [
+          "white house",
+          3514
+        ],
+        [
+          "associated press",
+          3251
+        ],
+        [
+          "instagram",
+          2104
+        ],
+        [
+          "nasdaq",
+          2102
+        ],
+        [
+          "australian associated",
+          1951
+        ],
+        [
+          "google",
+          1759
+        ],
+        [
+          "supreme court",
+          1682
+        ],
+        [
+          "reuters",
+          1632
+        ],
+        [
+          "facebook",
+          1591
+        ]
+      ]
+    }
+  },
+  "report_uri": "file:///opt/gni/data/runs/20261106/09d87a0c32268f6a99bf/reports/indicators.json"
+}

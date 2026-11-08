@@ -1,0 +1,29 @@
+{
+  "status": "verified",
+  "mode": "local",
+  "date": "20261106",
+  "sources": [
+    "Cassandra",
+    "MongoDB",
+    "Neo4j"
+  ],
+  "tabs": [
+    "Indicadores · Cassandra",
+    "Documentos · MongoDB",
+    "Relaciones · Neo4j"
+  ],
+  "metrics": {
+    "Registros analizados": "403,941",
+    "Registros del ultimo dia": "80,739",
+    "Variacion diaria": "-4.70%",
+    "Temas distintos del ultimo dia": "8,626",
+    "Tono promedio del ultimo dia": "-0.76",
+    "Registros encontrados en MongoDB": "80,739",
+    "Registros en Neo4j": "80,739",
+    "Relaciones con temas": "679,258",
+    "Relaciones con organizaciones": "235,993"
+  },
+  "warnings": 0,
+  "exceptions": 0,
+  "sample_document_visible": true
+}

@@ -1,93 +1,74 @@
+"""Ingesta diaria GKG: archivos compartidos, tres modelos y KPIs reconciliados."""
+from datetime import datetime, timedelta, timezone
 
-import io
-import logging
-from datetime import timedelta
-from urllib.request import urlopen
-from urllib.error import HTTPError, URLError
-
-import pendulum
 from airflow.decorators import dag, task
-from src.validation.validate_gkg import validate_gkg_archive, validate_target_date
-
-
-GDELT_BASE_URL = "https://data.gdeltproject.org/gkg"
 
 
 @dag(
-    dag_id="global_news_ingestion",
-    description="Descarga y validacion diaria de GDELT GKG",
-    schedule=None,  # Primero ejecutaremos manualmente
-    start_date=pendulum.datetime(2026, 10, 1, tz="UTC"),
+    dag_id='global_news_ingestion',
+    description='GDELT GKG: extraccion, validacion, MongoDB, Cassandra, Neo4j e indicadores',
+    schedule='0 6 * * *',
+    start_date=datetime(2026, 10, 1, tzinfo=timezone.utc),
     catchup=False,
+    is_paused_upon_creation=True,
     max_active_runs=1,
-    default_args={
-        "retries": 2,
-        "retry_delay": timedelta(minutes=5),
-    },
-    tags=["gdelt", "big-data", "global-news"],
+    dagrun_timeout=timedelta(hours=4),
+    default_args={'retries': 2, 'retry_delay': timedelta(minutes=5)},
+    tags=['gdelt', 'big-data', 'global-news'],
 )
 def global_news_ingestion():
+    @task
+    def select_partition(**context):
+        from src.pipeline.tasks import select_partition as select
+        conf = context['dag_run'].conf or {}
+        return select(conf, context.get('data_interval_end'), context['run_id'])
 
     @task
-    def check_availability(**context):
-        # Fecha manual o dia anterior a la fecha logica de la ejecucion (UTC)
-        conf = context["dag_run"].conf or {}
-        target_date = conf.get("target_date")
-
-        if target_date is None:
-            logical_date = context.get("logical_date")
-            if logical_date is None:
-                raise ValueError("Indica target_date cuando no haya fecha logica")
-            target_date = logical_date.in_timezone("UTC").subtract(days=1).format("YYYYMMDD")
-
-        validate_target_date(target_date)
-
-        filename = f"{target_date}.gkg.csv.zip"
-        url = f"{GDELT_BASE_URL}/{filename}"
-
-        try:
-            with urlopen(url, timeout=30) as response:
-                # Solo leemos un fragmento para verificar acceso
-                response.read(1024)
-        except (HTTPError, URLError) as error:
-            raise RuntimeError(
-                f"No se pudo acceder a {url}: {error}"
-            ) from error
-
-        logging.info("Archivo GDELT disponible: %s", url)
-
-        return {
-            "date": target_date,
-            "url": url,
-            "filename": filename,
-        }
+    def extract(info):
+        from src.pipeline.tasks import extract_partition
+        return extract_partition(info)
 
     @task
-    def download_and_validate(file_info):
-        url = file_info["url"]
-        target_date = file_info["date"]
+    def validate(info):
+        from src.pipeline.tasks import validate_partition
+        return validate_partition(info)
 
-        logging.info("Descargando %s", url)
+    @task
+    def transform(info):
+        from src.pipeline.tasks import transform_partition
+        return transform_partition(info)
 
-        with urlopen(url, timeout=180) as response:
-            zip_bytes = response.read()
+    @task
+    def load_mongodb(info):
+        from src.pipeline.tasks import load_mongo_partition
+        return load_mongo_partition(info)
 
-        validation = validate_gkg_archive(io.BytesIO(zip_bytes), target_date)
-        valid_rows = validation["total"]
+    @task
+    def aggregate_cassandra(info):
+        from src.pipeline.tasks import aggregate_partition
+        return aggregate_partition(info)
 
-        logging.info(
-            "Validacion completada: %s registros GKG",
-            valid_rows
-        )
+    @task
+    def load_neo4j(info):
+        from src.pipeline.tasks import graph_partition
+        return graph_partition(info)
 
-        return {
-            "date": target_date,
-            "records": valid_rows,
-            "status": "validated",
-        }
+    @task
+    def generate_indicators(info, cassandra_result, neo4j_result):
+        from src.pipeline.tasks import finalize_partition
+        # Estos argumentos establecen la dependencia de ambas ramas.
+        if any(result['status'] != 'completed' for result in (cassandra_result, neo4j_result)):
+            raise ValueError('Las cargas de las bases no finalizaron')
+        return finalize_partition(info)
 
-    file_info = check_availability()
-    download_and_validate(file_info)
+    selected = select_partition()
+    extracted = extract(selected)
+    validated = validate(extracted)
+    transformed = transform(validated)
+    loaded = load_mongodb(transformed)
+    aggregated = aggregate_cassandra(loaded)
+    graph = load_neo4j(loaded)
+    generate_indicators(loaded, aggregated, graph)
 
 
-global_news_ingestion()
+dag = global_news_ingestion()
