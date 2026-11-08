@@ -17,15 +17,19 @@ class DashboardTests(unittest.TestCase):
     def run_dashboard(self, with_themes=True, cassandra_failure=False, mongo_failure=False):
         daily = [SimpleNamespace(
             news_date=SimpleNamespace(date=lambda d=d: date(2026, 10, d)),
-            total_records=count, unique_themes=2, average_tone=None,
+            total_records=count, unique_themes=2, average_tone=None, generation=None,
         ) for d, count in [(26, 0), (27, 2)]]
+
+        class Result(list):
+            def one(self):
+                return self[0] if self else None
 
         class Session:
             def execute(self, query, params=None):
                 if cassandra_failure:
                     raise RuntimeError('offline')
                 if 'daily_news_metrics' in query:
-                    return daily
+                    return Result(daily)
                 if 'daily_theme_metrics' in query:
                     return [SimpleNamespace(theme='EPU_POLICY', record_count=1)] if with_themes else []
                 return [SimpleNamespace(organization='demo', record_count=1)]

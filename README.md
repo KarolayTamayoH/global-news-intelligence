@@ -10,10 +10,11 @@ Plataforma académica de análisis de registros GDELT GKG mediante MongoDB, Cass
 - **403.941 registros en seis fechas** reconciliados en las tres bases: 23–27 de octubre y 6 de noviembre de 2026. Evidencia: [`docs/historical_verification.json`](docs/historical_verification.json).
 - Dashboard con tres vistas conectadas: indicadores Cassandra, documentos MongoDB y relaciones Neo4j.
 - CRUD ejecutado y verificado en las tres bases con UUID propios y limpieza de datos de prueba.
-- 28 pruebas automatizadas aprobadas y comprobación de la aplicación con bases reales, sin errores.
+- 34 pruebas automatizadas aprobadas y comprobación de la aplicación con bases reales, sin errores.
 - Capturas reales del navegador e informe LaTeX/PDF actualizados.
 - **Scheduler verificado:** ejecución programada real, ocho tareas exitosas y 80.739 registros del 6 de noviembre reconciliados.
-- **Pendiente:** recuperación ante fallos parciales, rendimiento, reproducibilidad en otro equipo y video/entrega.
+- **Recuperación Cassandra verificada:** un fallo tras 25 escrituras conserva la versión visible; el reintento publica una versión completa y reconcilia las tres bases.
+- **Pendiente:** rendimiento, retención de versiones, reproducibilidad en otro equipo y video/entrega.
 
 Los cinco JSONL locales de 20261023–20261027 suman **323.202 registros**. Las bases actuales contienen esos registros y otros 80.739 del 6 de noviembre descargados por el scheduler: 403.941 en total. Un registro GKG no equivale a un artículo único.
 
@@ -151,6 +152,7 @@ La suite usa datos sintéticos y clientes simulados; los dos últimos comandos n
 
 - [`docs/airflow_verification_first.json`](docs/airflow_verification_first.json) y [`docs/airflow_verification_repeat.json`](docs/airflow_verification_repeat.json).
 - [`docs/dashboard_verification.json`](docs/dashboard_verification.json).
+- [Recuperación Cassandra](docs/cassandra_recovery_verification.json) y [seis fechas versionadas reconciliadas](docs/cassandra_snapshot_verification.json).
 - [`docs/crud_verification.json`](docs/crud_verification.json).
 - [`docs/verificacion_local.json`](docs/verificacion_local.json).
 - [`docs/local_environment_verification.json`](docs/local_environment_verification.json).
@@ -172,9 +174,9 @@ La suite usa datos sintéticos y clientes simulados; los dos últimos comandos n
 
 ## Limitaciones y cierre
 
-Quedan las pruebas de recuperación/rendimiento, la reproducción en otro equipo, la actualización de capturas e informe y el video de 20–25 minutos con todos los integrantes. La entrega del curso es el **17 de noviembre de 2026**.
+Quedan las pruebas de rendimiento y recuperación de otras etapas, la retención de versiones Cassandra, la reproducción en otro equipo, la actualización de capturas e informe y el video de 20–25 minutos con todos los integrantes. La entrega del curso es el **17 de noviembre de 2026**.
 
-El reemplazo de agregados de entidades en Cassandra usa DELETE + INSERT y puede presentar lecturas parciales. Los rankings se ordenan en Python. Los identificadores documentales dependen de archivo y fila; el contrato asume archivos diarios inmutables. El grafo está truncado y los conteos no prueban la identidad de cada arista. La reproducción en una segunda máquina sigue pendiente.
+Cassandra publica versiones completas: las frecuencias se escriben y verifican con un UUID nuevo antes de activar conjuntamente métricas y generación. Un fallo previo conserva la última versión publicada. Las versiones anteriores y los intentos incompletos se conservan; falta definir su retención. Se requiere un único escritor por fecha. Guía y prueba reproducible: [`docs/cassandra_recovery.md`](docs/cassandra_recovery.md). Los rankings se ordenan en Python. Los identificadores documentales dependen de archivo y fila; el contrato asume archivos diarios inmutables. El grafo está truncado y los conteos no prueban la identidad de cada arista. La reproducción en una segunda máquina sigue pendiente.
 
 Plan actualizado: [`docs/plan_proximos_pasos.md`](docs/plan_proximos_pasos.md).
 

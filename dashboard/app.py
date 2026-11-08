@@ -5,6 +5,8 @@ import pandas as pd
 import plotly.express as px
 
 from cassandra.cluster import Cluster
+from cassandra import ConsistencyLevel
+from src.transformation.aggregate_snapshot import active_entity_metrics
 from pymongo import MongoClient
 from neo4j import GraphDatabase
 from datetime import date
@@ -73,7 +75,9 @@ st.markdown("""
 def get_cassandra_session():
     cluster = Cluster([CASSANDRA_HOST], port=CASSANDRA_PORT)
     try:
-        return cluster.connect(CASSANDRA_KEYSPACE)
+        session = cluster.connect(CASSANDRA_KEYSPACE)
+        session.default_consistency_level = ConsistencyLevel.LOCAL_QUORUM
+        return session
     except Exception:
         cluster.shutdown()
         raise
@@ -126,14 +130,7 @@ def get_daily_metrics():
 def get_top_themes(target_date):
     session = get_cassandra_session()
 
-    rows = session.execute(
-        """
-        SELECT theme, record_count
-        FROM daily_theme_metrics
-        WHERE news_date = %s
-        """,
-        (target_date,)
-    )
+    rows = active_entity_metrics(session, target_date, 'theme')
 
     data = [
         {
@@ -159,14 +156,7 @@ def get_top_themes(target_date):
 def get_top_organizations(target_date):
     session = get_cassandra_session()
 
-    rows = session.execute(
-        """
-        SELECT organization, record_count
-        FROM daily_organization_metrics
-        WHERE news_date = %s
-        """,
-        (target_date,)
-    )
+    rows = active_entity_metrics(session, target_date, 'organization')
 
     data = [
         {

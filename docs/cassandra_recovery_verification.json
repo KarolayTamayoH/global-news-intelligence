@@ -1,0 +1,125 @@
+{
+  "status": "verified",
+  "date": "20261026",
+  "run_id": "recovery__14f520a9-fdd3-446d-8079-43540de5cd8a",
+  "failure_after_rows": 25,
+  "failed_attempt_status": "failed",
+  "visible_metrics_preserved": true,
+  "generation_before": "04b0c586-1008-4bff-a21f-d61754768c4a",
+  "generation_after_failure": "04b0c586-1008-4bff-a21f-d61754768c4a",
+  "generation_after_retry": "59ecc33a-48af-4044-b1ce-fd61938ce959",
+  "retry_status": "completed",
+  "report_uri": "file:///opt/gni/data/runs/20261026/adc82355840103e1fc9a/reports/indicators.json",
+  "verification": {
+    "date": "20261026",
+    "mongo_records": 71883,
+    "mongo_indexes": [
+      "_id_",
+      "date_id",
+      "source_file"
+    ],
+    "unique_themes": 8554,
+    "unique_organizations": 59500,
+    "average_tone": -0.6736493830952129,
+    "cassandra_records": 71883,
+    "cassandra_entities_match": true,
+    "cassandra_generation": "59ecc33a-48af-4044-b1ce-fd61938ce959",
+    "neo4j": {
+      "records": 71883,
+      "theme_edges": 593228,
+      "organization_edges": 207829
+    },
+    "graph_entity_limit_per_record": 10,
+    "status": "verified",
+    "kpis": {
+      "daily_records": 71883,
+      "variation_pct": 78.68897285472805,
+      "unique_themes": 8554,
+      "average_tone": -0.6736493830952129,
+      "top_themes": [
+        [
+          "TAX_FNCACT",
+          58332
+        ],
+        [
+          "EPU_POLICY",
+          33135
+        ],
+        [
+          "TAX_ETHNICITY",
+          29568
+        ],
+        [
+          "CRISISLEX_CRISISLEXREC",
+          27161
+        ],
+        [
+          "UNGP_FORESTS_RIVERS_OCEANS",
+          25775
+        ],
+        [
+          "WB_696_PUBLIC_SECTOR_MANAGEMENT",
+          23044
+        ],
+        [
+          "USPEC_POLITICS_GENERAL1",
+          21905
+        ],
+        [
+          "LEADER",
+          21781
+        ],
+        [
+          "TAX_WORLDLANGUAGES",
+          21366
+        ],
+        [
+          "GENERAL_GOVERNMENT",
+          19754
+        ]
+      ],
+      "top_organizations": [
+        [
+          "united states",
+          6862
+        ],
+        [
+          "instagram",
+          2468
+        ],
+        [
+          "supreme court",
+          2317
+        ],
+        [
+          "white house",
+          2124
+        ],
+        [
+          "associated press",
+          1897
+        ],
+        [
+          "google",
+          1890
+        ],
+        [
+          "australian associated",
+          1824
+        ],
+        [
+          "reuters",
+          1701
+        ],
+        [
+          "facebook",
+          1505
+        ],
+        [
+          "justice department",
+          1083
+        ]
+      ]
+    }
+  }
+}

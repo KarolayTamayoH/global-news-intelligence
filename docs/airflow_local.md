@@ -37,7 +37,7 @@ Los artefactos se guardan en `runs/FECHA/HASH_DEL_RUN_ID/`, separados por ejecuc
 
 La transformación debe conservar el conteo validado. La carga documental comprueba el conteo MongoDB. Las ramas de agregación y grafo deben terminar antes de reconciliar volumen, frecuencias, tono y cantidades de nodos/aristas. Solo entonces se publica `reports/indicators.json` con los seis KPIs y se marca `pipeline_history` como `completed`.
 
-Neo4j repite MERGE mediante `force=True`, incluso si hay historial previo completo. El contrato supone archivos diarios inmutables: no se eliminan relaciones obsoletas si cambia su contenido. El cargador conserva las primeras diez entradas por lista antes de deduplicar. El reemplazo Cassandra usa DELETE + INSERT y puede producir lecturas parciales durante una actualización.
+Neo4j repite MERGE mediante `force=True`, incluso si hay historial previo completo. El contrato supone archivos diarios inmutables: no se eliminan relaciones obsoletas si cambia su contenido. El cargador conserva las primeras diez entradas por lista antes de deduplicar. Cassandra calcula todos los KPIs en una sola lectura de MongoDB, escribe y verifica una generación nueva y solo después publica la fila de métricas con su UUID. Un fallo previo conserva la versión visible anterior. El DAG invoca una sola agregación por fecha. Guía y prueba de recuperación: [Cassandra](cassandra_recovery.md).
 
 ## Arranque
 

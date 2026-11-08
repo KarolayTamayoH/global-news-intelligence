@@ -106,11 +106,9 @@ def load_mongo_partition(info):
 
 
 def aggregate_partition(info):
-    from src.transformation.aggregate_daily import aggregate_daily
-    from src.transformation.aggregate_entities import aggregate_entities
+    from src.transformation.aggregate_snapshot import aggregate_snapshot
     with stage(info, 'cassandra'):
-        aggregate_daily(info['date'])
-        aggregate_entities(info['date'])
+        aggregate_snapshot(info['date'])
     return {'date': info['date'], 'status': 'completed'}
 
 

@@ -15,6 +15,8 @@ from src.config import (
     CASSANDRA_KEYSPACE, NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, NEO4J_DATABASE,
 )
 from src.validation.validate_gkg import validate_target_date
+from src.transformation.aggregate_snapshot import read_entity_metrics
+from cassandra import ConsistencyLevel
 
 
 def entities(values):
@@ -38,7 +40,10 @@ def verify_partition(target_date):
             theme_edges += len(entities(record.get('themes', [])[:10]))
             org_edges += len(entities(record.get('organizations', [])[:10]))
             try:
-                tone_sum += float(record.get('tone_raw', '').split(',')[0])
+                tone = float(record.get('tone_raw', '').split(',')[0])
+                if not math.isfinite(tone):
+                    continue
+                tone_sum += tone
                 tone_count += 1
             except (TypeError, ValueError):
                 pass
@@ -48,9 +53,10 @@ def verify_partition(target_date):
     cluster = Cluster([CASSANDRA_HOST], port=CASSANDRA_PORT)
     try:
         session = cluster.connect(CASSANDRA_KEYSPACE)
+        session.default_consistency_level = ConsistencyLevel.LOCAL_QUORUM
         news_date = datetime.strptime(target_date, '%Y%m%d').date()
         daily = session.execute(
-            "SELECT total_records, unique_themes, average_tone FROM daily_news_metrics "
+            "SELECT total_records, unique_themes, average_tone, generation FROM daily_news_metrics "
             "WHERE metric_group='global' AND news_date=%s", (news_date,)).one()
         if daily is None or daily.total_records != records or daily.unique_themes != len(themes):
             raise ValueError('Metricas diarias Cassandra distintas de MongoDB')
@@ -68,7 +74,7 @@ def verify_partition(target_date):
             ('daily_theme_metrics', 'theme', themes),
             ('daily_organization_metrics', 'organization', organizations),
         ]:
-            rows = session.execute(f'SELECT {field}, record_count FROM {table} WHERE news_date=%s', (news_date,))
+            rows = read_entity_metrics(session, news_date, field, daily.generation)
             actual = {getattr(row, field): row.record_count for row in rows}
             if actual != dict(expected):
                 raise ValueError(f'Agregados de {table} distintos de MongoDB')
@@ -89,7 +95,9 @@ def verify_partition(target_date):
     return {'date': target_date, 'mongo_records': records, 'mongo_indexes': index_names,
             'unique_themes': len(themes), 'unique_organizations': len(organizations),
             'average_tone': expected_tone, 'cassandra_records': daily.total_records,
-            'cassandra_entities_match': True, 'neo4j': graph,
+            'cassandra_entities_match': True,
+            'cassandra_generation': str(daily.generation) if daily.generation else None,
+            'neo4j': graph,
              'graph_entity_limit_per_record': 10, 'status': 'verified',
             'kpis': {'daily_records': records, 'variation_pct': variation,
                      'unique_themes': len(themes), 'average_tone': expected_tone,

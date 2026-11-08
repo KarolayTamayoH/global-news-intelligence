@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS global_news_analytics.daily_news_metrics (
     total_records BIGINT,
     unique_themes INT,
     average_tone DOUBLE,
+    generation UUID,
     PRIMARY KEY (metric_group, news_date)
 ) WITH CLUSTERING ORDER BY (news_date DESC);
 
@@ -34,4 +35,21 @@ CREATE TABLE IF NOT EXISTS global_news_analytics.daily_organization_metrics (
     organization TEXT,
     record_count BIGINT,
     PRIMARY KEY (news_date, organization)
+);
+
+-- Versiones inmutables. daily_news_metrics.generation publica la versión completa.
+CREATE TABLE IF NOT EXISTS global_news_analytics.daily_theme_metrics_versions (
+    news_date DATE,
+    generation UUID,
+    theme TEXT,
+    record_count BIGINT,
+    PRIMARY KEY ((news_date, generation), theme)
+);
+
+CREATE TABLE IF NOT EXISTS global_news_analytics.daily_organization_metrics_versions (
+    news_date DATE,
+    generation UUID,
+    organization TEXT,
+    record_count BIGINT,
+    PRIMARY KEY ((news_date, generation), organization)
 );
