@@ -24,3 +24,10 @@ data/runs/
 /informe.out
 /informe.synctex.gz
 /informe.toc
+
+# Auxiliares de LaTeX del informe (el PDF y main.tex si se versionan).
+docs/informe/*.aux
+docs/informe/*.log
+docs/informe/*.out
+docs/informe/*.toc
+docs/informe/build.log

@@ -3,8 +3,14 @@ import os
 import shutil
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+from urllib.request import url2pathname
 
 from src.config import DATA_DIR
+
+
+def uri_to_path(uri):
+    """Convertir una URI file:/// en ruta del sistema; en Windows respeta la letra de unidad."""
+    return Path(url2pathname(urlparse(uri).path))
 
 
 class ArtifactStore:
@@ -24,7 +30,7 @@ class ArtifactStore:
 
     def publish(self, source, key):
         uri = self.uri(key)
-        destination = Path(unquote(urlparse(uri).path))
+        destination = uri_to_path(uri)
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary = destination.with_name(destination.name + '.part')
         try:
@@ -42,5 +48,5 @@ class ArtifactStore:
         self.uri(key)
         destination = Path(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(Path(unquote(urlparse(uri).path)), destination)
+        shutil.copyfile(uri_to_path(uri), destination)
         return destination

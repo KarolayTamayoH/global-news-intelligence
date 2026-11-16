@@ -1,9 +1,10 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from src.pipeline.artifacts import ArtifactStore
+from src.pipeline.artifacts import ArtifactStore, uri_to_path
 from src.pipeline import tasks
 
 
@@ -26,6 +27,10 @@ class PipelineTests(unittest.TestCase):
                     first.uri(key)
             with self.assertRaises(ValueError):
                 second.fetch('file:///other/storage.zip', root / 'outside.zip')
+
+    @unittest.skipUnless(os.name == 'nt', 'Las letras de unidad solo existen en Windows')
+    def test_windows_drive_uri_maps_to_absolute_path(self):
+        self.assertEqual(uri_to_path('file:///C:/big%20data/x.zip'), Path('C:/big data/x.zip'))
 
     def test_storage_requires_an_absolute_local_file_uri(self):
         for uri in ['https://example.invalid/data', 'file://remote/data',
