@@ -44,15 +44,6 @@ function breadcrumb(s, current) {
     s.addText(n, { x: i * w, y: 0, w, h: 0.28, isTextBox: true, margin: 0, align: 'center', valign: 'middle', fontFace: F, fontSize: 11, bold: on, color: on ? K.accent : K.muted, objectName: 'Sección ' + n });
   });
 }
-function content(title, section, cite, notes) {
-  pres.addSection({ title: section + ': ' + title.slice(0, 30) });
-  const s = pres.addSlide({ masterName: 'CONTENIDO', sectionTitle: section + ': ' + title.slice(0, 30) });
-  breadcrumb(s, section);
-  s.addText(title, { placeholder: 'title' });
-  if (cite) s.addText(cite, { x: M, y: 5.2, w: 8.3, h: 0.3, isTextBox: true, margin: 0, fontFace: F, fontSize: 12, color: K.muted, valign: 'middle', objectName: 'Cita' });
-  s.addNotes(notes);
-  return s;
-}
 function bullets(s, items, x, y, w, h, size = 20) {
   const runs = items.map((t, i) => ({ text: t, options: { bullet: true, breakLine: i < items.length - 1 } }));
   s.addText(runs, { x, y, w, h, isTextBox: true, margin: 0, fontFace: F, fontSize: size, color: K.body, valign: 'top', paraSpaceAfter: 10, objectName: 'Puntos clave' });
@@ -83,29 +74,75 @@ const chartBase = {
   showLegend: false, dataLabelFontFace: '+mn-lt', dataLabelColor: K.body, dataLabelFontSize: 14,
 };
 
+// ---------- Guion: segmentos por orador; la duración se calcula con 2,4 palabras por segundo ----------
+const NM2 = path.join(process.env.TEMP, 'deck', 'node_modules');
+const sharp = require(path.join(NM2, 'sharp'));
+const CAP = 'z:/C26-2/BIGDATA/proy/proy2/karol/docs/evidencias_2026-11-16/capturas/recortes/';
+const WPS = 2.3;
+const NAMES = { A: 'ABEL', C: 'CAROLINE', M: 'MAYRA', F: 'FABRICIO', L: 'ALESSANDRO' };
+const clock = { t: 0 };
+const TOTALS = { A: 0, C: 0, M: 0, F: 0, L: 0 };
+const GUION = [];
+const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}`;
+function segs(num, titulo, list) {
+  const lines = [];
+  list.forEach(([who, text, fixed]) => {
+    const secs = fixed || Math.max(5, Math.round(text.trim().split(/\s+/).length / WPS));
+    const ini = clock.t, fin = clock.t + secs;
+    clock.t = fin; TOTALS[who] += secs;
+    lines.push(`🎤 ${NAMES[who]} · ⏱ ${mmss(ini)} - ${mmss(fin)}\n“${text.trim()}”`);
+    GUION.push({ num, titulo, who, ini, fin, secs, text: text.trim() });
+  });
+  return lines.join('\n\n');
+}
+function content(title, section, cite, notes) {
+  pres.addSection({ title: section + ': ' + title.slice(0, 30) });
+  const s = pres.addSlide({ masterName: 'CONTENIDO', sectionTitle: section + ': ' + title.slice(0, 30) });
+  breadcrumb(s, section);
+  s.addText(title, { placeholder: 'title' });
+  if (cite) s.addText(cite, { x: M, y: 5.2, w: 8.3, h: 0.3, isTextBox: true, margin: 0, fontFace: F, fontSize: 12, color: K.muted, valign: 'middle', objectName: 'Cita' });
+  s.addNotes(notes);
+  return s;
+}
+const sizes = {};
+async function loadSizes(names) { for (const n of names) { const m = await sharp(CAP + n + '.png').metadata(); sizes[n] = [m.width, m.height]; } }
+function img(s, name, x, y, mw, mh, alt) {
+  const [w, h] = sizes[name]; const k = Math.min(mw / w, mh / h);
+  s.addImage({ path: CAP + name + '.png', x, y, w: w * k, h: h * k, altText: alt, objectName: 'Captura ' + name });
+  return [w * k, h * k];
+}
+
 (async () => {
+  await loadSizes(['panorama_resumen', 'panorama_flujo', 'indicadores_kpis', 'indicadores_temas', 'documentos_explorador', 'relaciones_resumen', 'relaciones_coocurrencia']);
+
   // ===== 1. Portada =====
   pres.addSection({ title: 'Portada' });
   let s = pres.addSlide({ masterName: 'PORTADA', sectionTitle: 'Portada' });
-  s.addText('Tres bases de datos con roles distintos mantienen conciliadas 403 941 noticias de GDELT', { x: 0.7, y: 1.2, w: 8.6, h: 1.8, isTextBox: true, margin: 0, fontFace: F, fontSize: 32, bold: true, color: K.white, valign: 'top', align: 'left' });
-  s.addText('Global News Intelligence: pipeline automatizado con MongoDB, Cassandra y Neo4j', { x: 0.7, y: 3.2, w: 8.6, h: 0.4, isTextBox: true, margin: 0, fontFace: F, fontSize: 16, color: K.soft });
-  s.addText('Equipo Global News Intelligence  ·  Universidad de Ingeniería y Tecnología (UTEC)', { x: 0.7, y: 3.8, w: 8.6, h: 0.35, isTextBox: true, margin: 0, fontFace: F, fontSize: 15, color: 'CADCFC' });
-  s.addText('Proyecto 2, curso de Big Data  ·  Noviembre de 2026', { x: 0.7, y: 4.2, w: 8.6, h: 0.35, isTextBox: true, margin: 0, fontFace: F, fontSize: 15, color: 'CADCFC' });
-  s.addNotes('Presentación del equipo. El mensaje central: cada base de datos resuelve un patrón de acceso distinto, y un pipeline en Airflow las mantiene conciliadas. Duración: 30 segundos.');
+  s.addText('Tres bases de datos con roles distintos mantienen conciliadas 403 941 noticias de GDELT', { x: 0.7, y: 1.1, w: 8.6, h: 1.8, isTextBox: true, margin: 0, fontFace: F, fontSize: 32, bold: true, color: K.white, valign: 'top', align: 'left' });
+  s.addText('Global News Intelligence: pipeline automatizado con MongoDB, Cassandra y Neo4j', { x: 0.7, y: 3.05, w: 8.6, h: 0.4, isTextBox: true, margin: 0, fontFace: F, fontSize: 16, color: K.soft });
+  s.addText('Abel  ·  Alessandro  ·  Caroline  ·  Fabricio  ·  Mayra', { x: 0.7, y: 3.65, w: 8.6, h: 0.35, isTextBox: true, margin: 0, fontFace: F, fontSize: 16, bold: true, color: K.white });
+  s.addText('Universidad de Ingeniería y Tecnología (UTEC)  ·  Proyecto 2, curso de Big Data', { x: 0.7, y: 4.05, w: 8.6, h: 0.35, isTextBox: true, margin: 0, fontFace: F, fontSize: 14, color: 'CADCFC' });
+  s.addText('Noviembre de 2026', { x: 0.7, y: 4.4, w: 8.6, h: 0.35, isTextBox: true, margin: 0, fontFace: F, fontSize: 14, color: 'CADCFC' });
+  s.addNotes(segs(1, 'Portada', [
+    ['A', 'Hola, somos el equipo de Global News Intelligence. Presentaremos un pipeline que lleva noticias de GDELT a tres bases de datos y a un dashboard. Yo soy Abel y me encargué del diagrama de arquitectura y de la orquestación con Airflow. Cada uno presentará la parte que construyó.'],
+    ['C', 'Soy Caroline. Me encargué del modelado y del script de ingesta de MongoDB.'],
+    ['M', 'Soy Mayra. Me encargué del modelado y del script de ingesta de Cassandra.'],
+    ['F', 'Soy Fabricio. Me encargué del modelado y del script de ingesta de Neo4j.'],
+    ['L', 'Y yo soy Alessandro. Implementé los KPIs y el dashboard.'],
+  ]));
 
   // ===== 2. Motivación =====
   s = content('GDELT publica cientos de miles de registros por día y una sola base no responde todas las consultas', 'Contexto',
     'GDELT Project; Leetaru y Schrodt (2013)',
-    'Situación: GDELT es un flujo diario de datos semiestructurados sobre noticias del mundo. Complicación: el mismo dato se necesita para tres usos que piden modelos distintos. Conservar el original sin pérdida, servir indicadores diarios con baja latencia y explorar qué temas y organizaciones aparecen juntos. En la carga real hay 403 941 registros en seis fechas.');
+    segs(2, 'Motivación', [['A', 'Empecemos por el problema. GDELT publica cada día un archivo con cientos de miles de registros sobre noticias del mundo. En nuestra carga, entre el 23 de octubre y el 6 de noviembre, llegaron entre cuarenta mil y ochenta y cinco mil registros por día, y sumamos cuatrocientos tres mil novecientos cuarenta y uno en seis fechas. Ese mismo dato se necesita para tres usos distintos. Primero, conservar el registro original sin perder nada. Segundo, responder indicadores diarios rápido. Y tercero, explorar qué temas y organizaciones aparecen juntos, que es una pregunta de relaciones. Una sola base de datos no resuelve bien las tres cosas, y de ahí nace el proyecto. Para darle contexto: el GKG, o Global Knowledge Graph, resume qué publicó la prensa mundial en cada fecha, con los temas tratados, las organizaciones mencionadas y el tono de la cobertura. Es un dato semiestructurado: tiene columnas fijas, pero con listas de longitud variable dentro de cada campo. Eso condiciona cómo lo guardamos.']]));
   bullets(s, ['Cada día llegan 40 000 a 85 000 registros', 'Hay que conservar el original', 'Los indicadores deben responder rápido', 'Las relaciones piden recorrer un grafo'], M, 1.5, 5.2, 3.4);
   s.addShape(pres.ShapeType.roundRect, { x: 6.2, y: 1.5, w: 3.3, h: 3.2, rectRadius: 0.06, fill: { color: K.panel }, line: { color: K.rule, width: 0.75 }, objectName: 'Panel de cifra' });
   s.addText('403 941', { x: 6.2, y: 1.9, w: 3.3, h: 0.9, isTextBox: true, margin: 0, align: 'center', valign: 'middle', fontFace: F, fontSize: 44, bold: true, color: K.primary });
   s.addText('registros GKG en seis fechas, del 23 de octubre al 6 de noviembre de 2026', { x: 6.45, y: 2.9, w: 2.8, h: 1.2, isTextBox: true, margin: 0, align: 'center', valign: 'top', fontFace: F, fontSize: 16, color: K.body });
 
   // ===== 3. Pregunta =====
-  s = content('Este proyecto pregunta qué base de datos conviene a cada tipo de dato y si el flujo puede automatizarse', 'Contexto',
-    null,
-    'La pregunta de investigación del proyecto. Tiene dos partes: una de modelado, qué dato va en qué base y por qué, y una de ingeniería, si todo el flujo puede correr solo cada día y terminar con las tres bases conciliadas.');
+  s = content('Este proyecto pregunta qué base de datos conviene a cada tipo de dato y si el flujo puede automatizarse', 'Contexto', null,
+    segs(3, 'Pregunta', [['F', 'Con eso en mente, nuestra pregunta tiene dos partes. La primera es de modelado: qué base de datos conviene a cada tipo de dato de GDELT y por qué. La segunda es de ingeniería: si un flujo de Airflow puede automatizar todo el camino y dejar las tres bases conciliadas cada día. Nuestro aporte es un pipeline de extremo a extremo con seis KPIs y un dashboard que consulta las tres bases. Dicho de otra forma, no buscamos la mejor base en abstracto, sino asignar cada dato a la base que lo consulta mejor, y demostrar que el conjunto funciona de manera automática y reproducible, con evidencias verificables en el repositorio. Para responder, construimos primero el modelo de cada base y luego el flujo que las alimenta.']]));
   s.addShape(pres.ShapeType.roundRect, { x: 1.0, y: 1.6, w: 8.0, h: 1.7, rectRadius: 0.1, fill: { color: 'EBF3FA' }, line: { color: K.accent, width: 1.5 }, objectName: 'Pregunta' });
   s.addText('¿Qué base resuelve mejor documentos, indicadores y relaciones de GDELT, y puede un DAG de Airflow mantenerlas conciliadas cada día?', { x: 1.25, y: 1.7, w: 7.5, h: 1.5, isTextBox: true, margin: 0, align: 'center', valign: 'middle', fontFace: F, fontSize: 22, color: K.primary });
   s.addText([{ text: 'Aporte: ', options: { bold: true } }, { text: 'pipeline de extremo a extremo con seis KPIs y un dashboard que consulta las tres bases.' }],
@@ -114,7 +151,7 @@ const chartBase = {
   // ===== 4. Datos =====
   s = content('El GKG diario aporta 11 columnas por registro y temas, organizaciones y tono concentran la señal', 'Datos',
     'Fuente: GDELT GKG diario, formato CSV tabulado dentro de ZIP (Leetaru y Schrodt, 2013)',
-    'El Global Knowledge Graph de GDELT entrega un archivo por día con once columnas. Tres de ellas alimentan los KPIs y el grafo: THEMES, ORGANIZATIONS y TONE. La validación comprueba el esquema exacto, el formato de fecha y que el tono sea numérico. En la muestra de 83 729 registros no hubo registros mal formados.');
+    segs(4, 'Datos', [['M', 'Los datos son el Global Knowledge Graph de GDELT, un archivo CSV tabulado dentro de un ZIP por cada día. Cada registro tiene once columnas. Tres de ellas son las que más usamos: THEMES, con la lista de temas; ORGANIZATIONS, con las organizaciones mencionadas; y TONE, con el tono del registro. Antes de cargar, validamos el esquema exacto de las once columnas, que la fecha tenga formato válido y que el tono sea numérico. En la muestra de ochenta y tres mil registros no hubo ninguno mal formado. Esta validación es la segunda etapa del pipeline. Un detalle importante es que cada archivo trae sus propios registros del día, así que el volumen cambia mucho de una fecha a otra; más adelante veremos ese efecto en los resultados. También es relevante que algunos campos vienen vacíos con frecuencia, como las personas o los eventos asociados, por lo que el modelo tiene que tolerar campos faltantes sin fallar.']]));
   const dr = [[{ text: 'Campo', options: { ...TH, fontSize: 16 } }, { text: 'Contenido', options: { ...TH, fontSize: 16 } }]];
   [['DATE', 'Fecha de publicación', false], ['THEMES', 'Lista de temas', true], ['ORGANIZATIONS', 'Lista de organizaciones', true], ['TONE', 'Tono del registro', true], ['Otros 7 campos', 'Personas, ubicaciones, URL', false]]
     .forEach(([a, b, key], i) => { const f = { fill: { color: key ? 'DCEBF8' : (i % 2 ? K.panel : K.white) } }; dr.push([{ text: a, options: { fontFace: F, fontSize: 16, bold: key, color: K.body, ...f } }, { text: b, options: { fontFace: F, fontSize: 16, color: K.body, ...f } }]); });
@@ -126,7 +163,7 @@ const chartBase = {
   // ===== 5. Arquitectura =====
   s = content('Airflow orquesta un flujo único que va de GDELT a tres bases y termina en un dashboard', 'Diseño',
     'Docker Compose: MongoDB 8.0, Cassandra 5.0, Neo4j 5.26, Airflow 2.11, Streamlit 1.66',
-    'Arquitectura. Airflow ejecuta ocho tareas. MongoDB recibe primero los documentos y es la fuente de verdad. Cassandra y Neo4j se alimentan desde Mongo en paralelo. Streamlit lee de las tres bases. Todo corre en contenedores con Docker Compose.');
+    segs(5, 'Arquitectura', [['A', 'Esta es la arquitectura. Todo parte de GDELT, que entrega los archivos diarios. Apache Airflow orquesta el flujo con un DAG de ocho tareas. Primero los datos llegan a MongoDB, que es nuestra fuente de verdad. Desde MongoDB se alimentan en paralelo Cassandra, que guarda los KPIs por fecha, y Neo4j, que guarda las relaciones. Finalmente, el dashboard de Streamlit consulta las tres bases. Todo corre en contenedores con Docker Compose: MongoDB 8, Cassandra 5, Neo4j 5.26 y Airflow 2.11. La idea central es que cada base recibe los datos que su modelo consulta mejor, y eso lo justifican mis compañeros en la siguiente diapositiva. Quiero resaltar dos decisiones. La primera es que MongoDB va primero: cualquier fallo posterior se puede reparar volviendo a leer los documentos originales. La segunda es que Cassandra y Neo4j no leen el archivo crudo, leen desde MongoDB, lo que garantiza que las tres bases parten del mismo conjunto de registros.']]));
   box(s, M, 2.45, 1.5, 1.0, 'GDELT', 'Archivos GKG', K.muted);
   box(s, 2.3, 2.45, 1.5, 1.0, 'Airflow', 'DAG de 8 tareas', K.primary);
   box(s, 4.1, 2.45, 1.6, 1.0, 'MongoDB', 'Documentos', K.accent);
@@ -141,7 +178,10 @@ const chartBase = {
   // ===== 6. Justificación =====
   s = content('Cada tipo de dato vive en la base cuyo modelo responde mejor a su patrón de consulta', 'Diseño',
     'Criterio de diseño del proyecto; documentación de MongoDB, Cassandra y Neo4j',
-    'Esta es la justificación técnica pedida. El criterio es el patrón de acceso. Un registro completo y variable pide un documento: MongoDB. Un agregado por fecha leído muchas veces pide una tabla diseñada por consulta: Cassandra. Una relación entre registro, tema y organización pide recorrer aristas: Neo4j. Una sola base obligaría a recalcular agregados en cada consulta o a perder el recorrido de relaciones.');
+    segs(6, 'Justificación', [
+      ['C', 'Empiezo yo con MongoDB. El registro completo de GKG, con listas anidadas y longitud variable, va a MongoDB porque un documento lo guarda tal como llega, con validador de esquema y carga idempotente mediante upsert. Eso evita normalizar las listas en varias tablas.'],
+      ['M', 'Los KPIs diarios y los rankings van a Cassandra. Se leen siempre por fecha, y su modelo de tablas por consulta nos da lecturas rápidas por partición, además de versiones de cada publicación. Así el dashboard no tiene que recalcular nada al consultar.'],
+      ['F', 'Y las relaciones entre registros, temas y organizaciones van a Neo4j, porque recorrer aristas es nativo: preguntas como qué organizaciones aparecen juntas se resuelven sin joins costosos. Si usáramos una sola base, perderíamos alguna de estas tres consultas. Por eso decidimos usar las tres, cada una en su rol.']]));
   const jr = [[{ text: 'Dato', options: { ...TH, fontSize: 16 } }, { text: 'Base', options: { ...TH, fontSize: 16 } }, { text: 'Motivo', options: { ...TH, fontSize: 16 } }]];
   [['Registro GKG completo', 'MongoDB', 'Esquema flexible y upsert idempotente'], ['KPIs diarios y rankings', 'Cassandra', 'Lectura por fecha y versiones'], ['Temas y organizaciones por registro', 'Neo4j', 'Recorrido de aristas sin joins']]
     .forEach(([a, b, c], i) => { const f = { fill: { color: i % 2 ? K.panel : K.white } }; jr.push([{ text: a, options: { fontFace: F, fontSize: 18, color: K.body, ...f } }, { text: b, options: { fontFace: F, fontSize: 18, bold: true, color: K.primary, ...f } }, { text: c, options: { fontFace: F, fontSize: 18, color: K.body, ...f } }]); });
@@ -150,7 +190,7 @@ const chartBase = {
   // ===== 7. DAG =====
   s = content('Un DAG de ocho tareas cubre las seis etapas exigidas y se ejecuta cada día a las 06:00', 'Diseño',
     'Apache Airflow 2.11.1, API TaskFlow (Apache Software Foundation, 2026)',
-    'El DAG usa la API TaskFlow. Se fija la fecha, se extrae, se valida y se transforma. Luego se carga MongoDB. Cassandra y Neo4j corren en paralelo y la última tarea concilia las tres bases. Programación cron 0 6 * * *, dos reintentos con cinco minutos de espera, sin catchup. La ejecución programada del 6 de noviembre quedó verificada con 80 739 registros.');
+    segs(7, 'DAG de Airflow', [['A', 'El DAG de Airflow tiene ocho tareas y cubre las seis etapas exigidas. Primero select_partition fija la fecha. Luego extract descarga el archivo, validate comprueba su calidad y transform lo convierte a JSON por líneas. Después load_mongodb carga los documentos. A partir de ahí, aggregate_cassandra y load_neo4j corren en paralelo, y la última tarea, generate_indicators, concilia las tres bases y publica el reporte. Se ejecuta cada día a las seis de la mañana con una expresión cron, con dos reintentos de cinco minutos y sin catchup. Ya verificamos una ejecución programada real: la del seis de noviembre, con ochenta mil setecientos treinta y nueve registros conciliados. En el apéndice C está el mismo diagrama tal como lo muestra el dashboard. Cada tarea registra su estado en la colección pipeline_history de MongoDB: si falla, se guarda el tipo de error y la etapa queda marcada como fallida, lo que facilita reintentar solo lo necesario. Como las cargas son idempotentes, volver a ejecutar una fecha no genera duplicados.']]));
   const tk = [['select_partition', K.muted], ['extract', K.muted], ['validate', K.primary], ['transform', K.primary], ['load_mongodb', K.accent]];
   tk.forEach(([t, c], i) => {
     const x = M + i * 1.8;
@@ -165,18 +205,15 @@ const chartBase = {
   const ln = (x, y, w, h, arr) => s.addShape(pres.ShapeType.line, { x, y, w, h, line: { color: K.muted, width: 1.5, ...(arr ? { endArrowType: 'triangle' } : {}) }, objectName: 'Conector' });
   ln(8.475, 2.15, 0, 0.3); ln(5.55, 2.45, 2.925, 0); ln(5.55, 2.45, 0, 1.4);
   ln(5.55, 3.05, 0.25, 0, true); ln(5.55, 3.85, 0.25, 0, true);
-  s.addShape(pres.ShapeType.line, { x: 7.9, y: 3.05, w: 0.25, h: 0, line: { color: K.muted, width: 1.5 }, objectName: 'Conector' });
-  s.addShape(pres.ShapeType.line, { x: 7.9, y: 3.85, w: 0.25, h: 0, line: { color: K.muted, width: 1.5 }, objectName: 'Conector' });
-  s.addShape(pres.ShapeType.line, { x: 8.15, y: 3.05, w: 0, h: 0.8, line: { color: K.muted, width: 1.5 }, objectName: 'Conector' });
-  s.addShape(pres.ShapeType.line, { x: 8.15, y: 3.45, w: 0.15, h: 0, line: { color: K.muted, width: 1.5, endArrowType: 'triangle' }, objectName: 'Flecha' });
+  ln(7.9, 3.05, 0.25, 0); ln(7.9, 3.85, 0.25, 0); ln(8.15, 3.05, 0, 0.8); ln(8.15, 3.45, 0.15, 0, true);
   s.addShape(pres.ShapeType.roundRect, { x: 8.3, y: 3.05, w: 1.2, h: 0.8, rectRadius: 0.06, fill: { color: K.primary }, line: { color: K.primary }, objectName: 'Tarea generate_indicators' });
   s.addText('generate_\nindicators', { x: 8.3, y: 3.05, w: 1.2, h: 0.8, isTextBox: true, margin: 0, align: 'center', valign: 'middle', fontFace: F, fontSize: 11, bold: true, color: K.white });
   bullets(s, ['Cron diario 0 6 * * *', '2 reintentos, 5 minutos', 'Sin catchup'], M, 2.75, 4.8, 1.8, 18);
 
-  // ===== 8. MongoDB =====
+  // ===== 8. MongoDB modelo =====
   s = content('MongoDB conserva el registro original y hace idempotente la carga de cada fecha', 'Diseño',
     'MongoDB, Inc. (2026), manual de MongoDB',
-    'Modelo de MongoDB. gkg_records guarda un documento por registro, con las listas ya separadas. La carga usa upsert con setOnInsert, de modo que repetir una fecha no duplica documentos. Hay un validador JSON Schema y dos colecciones de historial para auditar la ingesta y el estado de cada etapa del DAG.');
+    segs(8, 'MongoDB: modelo', [['C', 'En MongoDB hay tres colecciones. gkg_records guarda un documento por registro, con las listas de temas y organizaciones ya separadas. ingestion_history guarda un documento por archivo cargado, y pipeline_history guarda el estado de cada etapa del DAG. La carga usa upsert por el identificador, con setOnInsert, así que repetir una fecha no duplica documentos: es idempotente. Además tenemos un validador JSON Schema, e índices por fecha y por archivo de origen para que las consultas del dashboard sean rápidas. Elegimos este modelo porque el registro llega con listas de longitud variable, y un documento las representa de forma natural. Para el dashboard, el índice sobre la lista de temas permite filtrar por un tema exacto sin recorrer toda la colección.']]));
   [['gkg_records', 'Un documento por registro'], ['ingestion_history', 'Un documento por archivo'], ['pipeline_history', 'Estado por etapa del DAG']].forEach(([n, d], i) => {
     const y = 1.5 + i * 1.15;
     s.addShape(pres.ShapeType.roundRect, { x: M, y, w: 4.8, h: 1.0, rectRadius: 0.06, fill: { color: K.panel }, line: { color: K.accent, width: 1.25 }, objectName: 'Colección ' + n });
@@ -185,10 +222,17 @@ const chartBase = {
   });
   bullets(s, ['Upsert por _id: repetir una fecha no duplica', 'Validador JSON Schema', 'Índices por fecha y archivo'], 5.6, 1.5, 3.9, 3.3);
 
-  // ===== 9. Cassandra =====
+  // ===== 9. MongoDB ingesta =====
+  s = content('La ingesta carga por lotes con upsert y el conteo en MongoDB coincide con el archivo validado', 'Diseño',
+    'Captura: explorador documental del dashboard, fecha 06/11/2026 (docs/evidencias_2026-11-16/capturas)',
+    segs(9, 'MongoDB: ingesta y CRUD', [['C', 'El script de ingesta lee el archivo transformado y carga los documentos por lotes. Al terminar, el pipeline comprueba que el conteo en MongoDB sea igual al conteo validado: para el seis de noviembre, ochenta mil setecientos treinta y nueve. A la izquierda vemos el explorador documental del dashboard, que consulta MongoDB con filtros por tema exacto o por organización. También verificamos el CRUD completo: crear, leer, actualizar y borrar, eliminando los datos de prueba al final. En el explorador se ve que cada fila conserva el identificador, la cantidad de artículos asociados, y las listas de temas y organizaciones tal como llegaron.']]));
+  img(s, 'documentos_explorador', M, 1.4, 5.3, 3.7, 'Explorador documental del dashboard con 80 739 registros de MongoDB');
+  bullets(s, ['Carga por lotes con upsert', 'Conteo validado: 80 739', 'CRUD: crear, leer, actualizar y borrar'], 6.1, 1.5, 3.4, 3.3, 18);
+
+  // ===== 10. Cassandra modelo =====
   s = content('Cassandra publica cada KPI como una versión inmutable que se consulta por fecha', 'Diseño',
     'Apache Software Foundation (2026), documentación de Apache Cassandra',
-    'Modelo de Cassandra. Una tabla por consulta: métricas diarias, temas y organizaciones por fecha. Para no mostrar datos a medias, cada publicación escribe una versión con un UUID de generación y solo al final se activa. La consistencia es LOCAL_QUORUM. La recuperación tras reiniciar quedó verificada.');
+    segs(10, 'Cassandra: modelo', [['M', 'En Cassandra modelamos una tabla por consulta. daily_news_metrics guarda una fila por fecha con volumen, variación, diversidad y tono. Las tablas de temas y de organizaciones guardan los diez primeros de cada fecha. Para no mostrar nunca datos a medias, cada publicación escribe una versión nueva identificada con un UUID de generación. Primero se escribe la versión, luego se verifican los conteos y solo al final se activa la generación. Usamos consistencia LOCAL_QUORUM. Es un nodo con factor de replicación uno, suficiente para el entorno local del curso. Esto responde a la forma de trabajo de Cassandra: se diseña la tabla a partir de la consulta, no al revés. El dashboard siempre pregunta por una fecha, así que cada lectura va directa a su partición sin escanear nada.']]));
   [['1', 'Escribir versión nueva'], ['2', 'Verificar conteos'], ['3', 'Activar la generación']].forEach(([n, t], i) => {
     const y = 1.5 + i * 1.15;
     s.addShape(pres.ShapeType.roundRect, { x: M, y, w: 4.8, h: 0.9, rectRadius: 0.06, fill: { color: i === 2 ? K.primary : K.accent }, line: { color: K.accent }, objectName: 'Paso ' + n });
@@ -197,10 +241,17 @@ const chartBase = {
   });
   bullets(s, ['Una tabla por consulta de KPI', 'Lectura por partición de fecha', 'Consistencia LOCAL_QUORUM'], 5.6, 1.5, 3.9, 3.3);
 
-  // ===== 10. Neo4j =====
+  // ===== 11. Cassandra ingesta =====
+  s = content('El script publica los KPIs desde MongoDB y la recuperación tras reiniciar está verificada', 'Diseño',
+    'Captura: pestaña Indicadores del dashboard, fecha 06/11/2026 (docs/evidencias_2026-11-16/capturas)',
+    segs(11, 'Cassandra: ingesta y recuperación', [['M', 'El script de agregación calcula los KPIs desde MongoDB y los publica en Cassandra con ese protocolo de versiones. La captura muestra las tarjetas del dashboard servidas desde Cassandra: volumen, variación, diversidad temática y tono promedio del seis de noviembre. Además verificamos la recuperación: reiniciamos Cassandra y los KPIs publicados siguieron disponibles. El CRUD también quedó probado en esta base, con limpieza de los datos de prueba. Gracias a las versiones, si una publicación falla a medias, el dashboard sigue leyendo la última generación completa y nunca ve números parciales.']]));
+  img(s, 'indicadores_kpis', M, 1.4, 5.3, 3.7, 'Tarjetas de KPI servidas desde Cassandra y gráficos de cobertura');
+  bullets(s, ['Versión nueva con UUID', 'Se activa tras verificar', 'Recuperación tras reinicio verificada'], 6.1, 1.5, 3.4, 3.3, 18);
+
+  // ===== 12. Neo4j modelo =====
   s = content('Neo4j conecta registros, temas y organizaciones con unos 4,5 millones de aristas', 'Diseño',
     'Neo4j, Inc. (2026), manual de Cypher',
-    'Modelo de grafo. Tres tipos de nodos: GKGRecord, Theme y Organization. Dos relaciones: HAS_THEME y MENTIONS_ORG. Para acotar el tamaño se enlazan las diez primeras entidades de cada lista, y las cargas usan MERGE en lotes de cien. Entre las seis fechas suman unos 3,4 millones de aristas de temas y 1,1 millones de organizaciones.');
+    segs(12, 'Neo4j: modelo', [['F', 'En Neo4j el modelo tiene tres tipos de nodos: GKGRecord, para cada registro; Theme, para cada tema; y Organization, para cada organización. Y dos relaciones: HAS_THEME, del registro a sus temas, y MENTIONS_ORG, del registro a las organizaciones que menciona. Para controlar el tamaño del grafo enlazamos las diez primeras entidades de cada lista. Entre las seis fechas suman unos tres coma cuatro millones de aristas de temas y uno coma uno de organizaciones, unos cuatro millones y medio en total, sobre cuatrocientos tres mil nodos de registro. La ventaja del grafo es que las relaciones se guardan como datos de primera clase. Para saber qué temas aparecen en los mismos registros que una organización, basta recorrer dos saltos desde el nodo, algo que en un modelo relacional exigiría varios joins sobre tablas grandes. También creamos restricciones de unicidad para que cada tema y cada organización existan una sola vez.']]));
   [['Theme', 0.5, K.accent], ['GKGRecord', 2.55, K.primary], ['Organization', 4.6, K.accent]].forEach(([t, x, c]) => {
     s.addShape(pres.ShapeType.ellipse, { x, y: 2.3, w: 1.4, h: 1.1, fill: { color: c }, line: { color: c }, objectName: 'Nodo ' + t });
     s.addText(t, { x, y: 2.3, w: 1.4, h: 1.1, isTextBox: true, margin: 0, align: 'center', valign: 'middle', fontFace: F, fontSize: 14, bold: true, color: K.white });
@@ -211,20 +262,27 @@ const chartBase = {
   s.addText('Esquema del grafo', { x: M, y: 4.2, w: 5.1, h: 0.3, isTextBox: true, margin: 0, fontFace: F, fontSize: 14, color: K.muted });
   bullets(s, ['3,4 M de aristas HAS_THEME', '1,1 M de aristas MENTIONS_ORG', 'Diez entidades por lista'], 6.2, 1.5, 3.3, 3.3, 18);
 
-  // ===== 11. KPIs =====
+  // ===== 13. Neo4j ingesta =====
+  s = content('La ingesta usa MERGE en lotes de 100 y permite preguntar qué organizaciones aparecen juntas', 'Diseño',
+    'Captura: pestaña Relaciones del dashboard, fecha 06/11/2026 (docs/evidencias_2026-11-16/capturas)',
+    segs(13, 'Neo4j: ingesta y CRUD', [['F', 'El script carga el grafo con MERGE en lotes de cien, de modo que repetir una fecha no duplica nodos ni relaciones. Gracias a eso podemos hacer preguntas de red. La captura es del dashboard: los pares de organizaciones que más coinciden en los registros. El par más frecuente es oval office y white house, con ochocientos cinco registros en común. En Neo4j también probamos el CRUD, incluyendo crear y borrar una relación. El dashboard también calcula la concentración de la agenda: por ejemplo, las diez organizaciones más citadas acumulan el once por ciento de las menciones, y el setenta por ciento de las organizaciones se menciona una sola vez.']]));
+  img(s, 'relaciones_coocurrencia', M, 1.4, 5.3, 3.7, 'Pares de organizaciones que más coinciden en los registros, según Neo4j');
+  bullets(s, ['MERGE en lotes de 100', 'Par líder: oval office y white house, 805 registros', 'CRUD con relación verificado'], 6.1, 1.5, 3.4, 3.3, 18);
+
+  // ===== 14. KPIs =====
   s = content('Seis KPIs diarios se calculan desde MongoDB y se sirven desde Cassandra', 'Resultados',
     'Definiciones completas en la sección 9 del informe técnico. Rₜ: registros de la fecha t.',
-    'Los seis indicadores. Volumen, variación respecto de la fecha anterior, frecuencia de temas, diversidad temática, tono promedio y organizaciones más mencionadas. Todos se calculan en la etapa de agregación y se reconcilian con las tres bases. Valores del 6 de noviembre de 2026.');
+    segs(14, 'KPIs', [['L', 'Implementamos seis KPIs, y el mínimo pedido era cinco. El uno es el volumen diario: cuántos registros hay en la fecha. El dos es la variación diaria, el cambio porcentual frente a la fecha disponible anterior. El tres es la frecuencia de temas, con los diez más frecuentes. El cuatro es la diversidad temática, cuántos códigos de tema distintos aparecen. El cinco es el tono promedio. Y el seis son las organizaciones más mencionadas. Los valores del seis de noviembre son: ochenta mil setecientos treinta y nueve registros, una variación de menos cuatro coma siete por ciento, un tema líder con sesenta y siete mil trescientos cuarenta y siete registros, ocho mil seiscientos veintiséis temas distintos, un tono de menos cero coma setenta y seis, y united states como organización líder, con siete mil quinientas cincuenta y siete menciones. Las fórmulas completas están en el informe. El uno y el cuatro miden amplitud; el dos mide cambio en el tiempo; el tres y el seis miden qué se menciona más; y el cinco mide el sentimiento. Todos se calculan una vez por fecha, durante la tarea de agregación.']]));
   const kr = [[{ text: 'KPI', options: { ...TH, fontSize: 14 } }, { text: 'Fórmula', options: { ...TH, fontSize: 14 } }, { text: '6 nov 2026', options: { ...TH, fontSize: 14, align: 'right' } }]];
   [['1 Volumen diario', 'Vₜ = |Rₜ|', '80 739'], ['2 Variación diaria', 'Δₜ = (Vₜ − Vₜ₋₁) / Vₜ₋₁ × 100', '−4,70 %'], ['3 Frecuencia de temas', 'fₜ(τ) = |{r ∈ Rₜ : τ ∈ temas(r)}|', '67 347 (TAX_FNCACT)'],
     ['4 Diversidad temática', 'Dₜ = |⋃ temas(r)|', '8 626'], ['5 Tono promedio', 'T̄ₜ = promedio de tono(r)', '−0,76'], ['6 Organizaciones', 'gₜ(o) = |{r ∈ Rₜ : o ∈ org(r)}|', '7 557 (united states)']]
     .forEach(([a, b, c], i) => { const f = { fill: { color: i % 2 ? K.panel : K.white } }; kr.push([{ text: a, options: { fontFace: F, fontSize: 14, bold: true, color: K.body, ...f } }, { text: b, options: { fontFace: F, fontSize: 14, color: K.body, ...f } }, { text: c, options: { fontFace: F, fontSize: 14, color: K.primary, bold: true, align: 'right', ...f } }]); });
   s.addTable(kr, { x: M, y: 1.45, w: 9.0, colW: [2.5, 4.0, 2.5], rowH: 0.52, ...tblOpts, objectName: 'Tabla de KPIs' });
 
-  // ===== 12. Resultado volumen =====
+  // ===== 15. Volumen =====
   s = content('El volumen cae 49 % durante el fin de semana del 24 y 25 de octubre y se recupera el lunes', 'Resultados',
     'Fuente: conteos de gkg_records en MongoDB por fecha de publicación del GKG',
-    'Resultado uno. El 23 de octubre hay 79 349 registros. El sábado 24 baja a 47 019, una caída de 40,7 por ciento, y el domingo 25 a 40 228. El lunes 26 sube a 71 883 y el 27 a 84 723. Es un patrón semanal esperable en la producción de noticias.');
+    segs(15, 'Resultado: volumen', [['C', 'Pasemos a los resultados, empezando por el volumen, que sale de los conteos en MongoDB. El 23 de octubre hay setenta y nueve mil trescientos cuarenta y nueve registros. El sábado 24 baja a cuarenta y siete mil diecinueve y el domingo 25 a cuarenta mil doscientos veintiocho, es decir, cerca de un cuarenta y nueve por ciento menos que el 23. El lunes 26 se recupera a setenta y un mil ochocientos ochenta y tres y el 27 llega a ochenta y cuatro mil setecientos veintitrés. Es un patrón semanal esperable: se publican menos noticias el fin de semana. Este resultado también sirve como prueba de que la ingesta funciona: los conteos que vemos son los de los documentos realmente guardados en MongoDB, y coinciden con los del archivo de origen.']]));
   s.addChart(pres.charts.BAR, [{ name: 'Registros', labels, values: [79349, 47019, 40228, 71883, 84723, 80739] }], {
     x: M, y: 1.4, w: 5.4, h: 3.7, barDir: 'col', chartColors: [K.grey, K.accent, K.primary, K.grey, K.grey, K.grey],
     showValue: true, dataLabelPosition: 'outEnd', dataLabelFormatCode: '#,##0', dataLabelFontSize: 12, valAxisMaxVal: 100000, valAxisLabelFormatCode: '#,##0', ...chartBase,
@@ -233,10 +291,10 @@ const chartBase = {
   callout(s, '−49 %\nfrente al 23 oct', 2.55, 1.45, 1.45, 0.65);
   bullets(s, ['Sábado 24: 47 019', 'Domingo 25: 40 228', 'Lunes 26: 71 883'], 6.2, 1.5, 3.3, 3.3, 18);
 
-  // ===== 13. Resultado tono =====
+  // ===== 16. Tono =====
   s = content('El tono promedio es negativo en todas las fechas y toca su mínimo cuando el volumen es menor', 'Resultados',
     'Fuente: KPI 5, tono promedio por fecha, publicado en Cassandra',
-    'Resultado dos. El tono promedio de GDELT es negativo en las seis fechas, entre menos 0,66 y menos 1,12. El mínimo, menos 1,12, coincide con el domingo 25, el día de menor volumen. Con pocos registros el promedio pesa más cada noticia negativa.');
+    segs(16, 'Resultado: tono', [['M', 'El segundo resultado es el tono promedio, que sale de Cassandra. Es negativo en las seis fechas, entre menos cero coma sesenta y seis y menos uno coma doce. El mínimo, menos uno coma doce, coincide con el domingo 25, justo el día de menor volumen. Una lectura posible es que con pocos registros cada noticia negativa pesa más en el promedio. Es una hipótesis que no probamos, pero el patrón es claro en los datos. Para quien lea el gráfico: el tono medio de GDELT va aproximadamente de menos diez a más diez, y todos nuestros días están en el rango ligeramente negativo.']]));
   s.addChart(pres.charts.LINE, [{ name: 'Tono promedio', labels, values: [-0.83, -1.06, -1.12, -0.67, -0.66, -0.76] }], {
     x: M, y: 1.4, w: 5.4, h: 3.7, chartColors: [K.accent], lineSize: 3, lineDataSymbolSize: 9,
     showValue: true, dataLabelPosition: 't', dataLabelFormatCode: '0.00', dataLabelFontSize: 12, valAxisMinVal: -1.4, valAxisMaxVal: -0.4, valAxisLabelFormatCode: '0.0', ...chartBase,
@@ -245,10 +303,10 @@ const chartBase = {
   callout(s, 'Mínimo: −1,12 (25 oct)', 3.0, 3.85, 2.3, 0.45);
   bullets(s, ['Rango: −1,12 a −0,66', 'Mínimo el 25 oct', 'Mayor volumen, tono menos negativo'], 6.2, 1.5, 3.3, 3.3, 18);
 
-  // ===== 14. Conciliación =====
+  // ===== 17. Conciliación =====
   s = content('Las tres bases contienen el mismo número de registros en las seis fechas', 'Resultados',
     'Fuente: docs/historical_verification.json y verificacion_local.json del repositorio',
-    'Resultado tres. Para cada fecha se comparan los registros en MongoDB, Cassandra y Neo4j y deben coincidir. Coinciden en las seis fechas y suman 403 941 registros. La última tarea del DAG ejecuta esta conciliación en cada corrida.');
+    segs(17, 'Resultado: conciliación', [['C', 'El tercer resultado es la conciliación. La última tarea del DAG compara, para cada fecha, los registros en MongoDB, Cassandra y Neo4j, y deben coincidir. La tabla muestra que coinciden en las seis fechas: la diferencia es cero, y suman cuatrocientos tres mil novecientos cuarenta y uno registros. Si alguna base no coincidiera, la tarea fallaría y el DAG no se marcaría como completo. Esta conciliación se ejecuta en cada corrida, no solo en esta verificación. En la práctica, esta tarea es la que nos permite afirmar que el pipeline funciona de extremo a extremo y no solo que cada pieza funciona por separado.']]));
   const vr = [['Fecha', 'MongoDB', 'Cassandra', 'Neo4j'].map((t, i) => ({ text: t, options: { ...TH, fontSize: 14, align: i ? 'right' : 'left' } }))];
   [['23 oct 2026', 79349], ['24 oct 2026', 47019], ['25 oct 2026', 40228], ['26 oct 2026', 71883], ['27 oct 2026', 84723], ['6 nov 2026', 80739]].forEach(([d, n], i) => {
     const f = { fill: { color: i % 2 ? K.panel : K.white } }; const t = n.toLocaleString('en-US').replace(/,/g, ' ');
@@ -258,28 +316,38 @@ const chartBase = {
   callout(s, 'Diferencia cero\nen las 6 fechas', 6.9, 1.5, 2.6, 0.75);
   bullets(s, ['Total: 403 941', 'Conciliación en cada corrida'], 6.9, 2.6, 2.6, 2.2, 18);
 
-  // ===== 15. Dashboard =====
-  s = content('El dashboard de Streamlit consulta las tres bases en cuatro vistas', 'Resultados',
-    'Streamlit Inc. (2026), documentación de Streamlit',
-    'Aquí se pasa a la demostración en vivo del dashboard, en localhost puerto 8501. Panorama resume la fecha. Indicadores muestra los seis KPIs desde Cassandra. Documentos consulta MongoDB. Relaciones dibuja el grafo de Neo4j. Mostrar el cambio de fecha y la lectura de un documento.');
-  [['Panorama', 'Resumen de la fecha', K.primary], ['Indicadores', 'Seis KPIs desde Cassandra', K.accent], ['Documentos', 'Búsqueda en MongoDB', K.accent], ['Relaciones', 'Grafo desde Neo4j', K.accent]].forEach(([t, d, c], i) => {
-    const x = M + i * 2.28;
-    s.addShape(pres.ShapeType.roundRect, { x, y: 1.6, w: 2.1, h: 2.0, rectRadius: 0.06, fill: { color: c }, line: { color: c }, objectName: 'Vista ' + t });
-    s.addText(t, { x, y: 1.85, w: 2.1, h: 0.5, isTextBox: true, margin: 0, align: 'center', valign: 'middle', fontFace: F, fontSize: 18, bold: true, color: K.white });
-    s.addText(d, { x: x + 0.15, y: 2.45, w: 1.8, h: 0.9, isTextBox: true, margin: 0, align: 'center', valign: 'top', fontFace: F, fontSize: 14, color: 'E6EEF8' });
-  });
-  s.addText('Demostración en vivo en localhost:8501', { x: M, y: 4.1, w: 9.0, h: 0.45, isTextBox: true, margin: 0, fontFace: F, fontSize: 20, bold: true, color: K.primary });
+  // ===== 18. Dashboard 1 =====
+  s = content('El dashboard resume la fecha elegida y sirve los seis KPIs desde Cassandra', 'Resultados',
+    'Capturas del dashboard de Streamlit, fecha 06/11/2026 (docs/evidencias_2026-11-16/capturas)',
+    segs(18, 'Dashboard: Panorama e Indicadores', [['L', 'Ahora el dashboard. Lo hicimos en Streamlit y consulta las tres bases. La pestaña Panorama resume la fecha: cuatrocientos tres mil novecientos cuarenta y uno registros analizados, seis fechas cargadas, ochenta mil setecientos treinta y nueve registros el seis de noviembre y tres de tres bases conectadas. La pestaña Indicadores muestra los seis KPIs servidos desde Cassandra. Aquí vemos el top diez de temas: TAX_FNCACT lidera, presente en el ochenta y tres coma cuatro por ciento de los registros del día. Todo cambia al elegir otra fecha en el selector de arriba. Ahora lo mostramos en vivo.'],
+      ['L', 'DEMOSTRACIÓN EN VIVO. Abrir el dashboard y cambiar la fecha del selector a 24/10/2026: el volumen baja a 47 019 y la variación a menos 40,7 por ciento. Volver a 06/11/2026. En Indicadores, bajar hasta el top diez de temas y señalar TAX_FNCACT. Decir: al cambiar la fecha, todo el tablero se recalcula desde Cassandra.', 60]]));
+  img(s, 'panorama_resumen', M, 1.4, 4.4, 3.7, 'Pestaña Panorama del dashboard');
+  img(s, 'indicadores_temas', 5.1, 1.4, 4.4, 3.7, 'Pestaña Indicadores: top 10 de temas');
+  s.addText('Panorama', { x: M, y: 4.95, w: 4.4, h: 0.25, isTextBox: true, margin: 0, align: 'center', fontFace: F, fontSize: 12, color: K.muted });
+  s.addText('Indicadores', { x: 5.1, y: 4.95, w: 4.4, h: 0.25, isTextBox: true, margin: 0, align: 'center', fontFace: F, fontSize: 12, color: K.muted });
 
-  // ===== 16. Discusión =====
-  s = content('La arquitectura responde la pregunta, con límites de escala que conviene declarar', 'Cierre',
-    null,
-    'Discusión. Interpretación: cada base responde una consulta que las otras no resuelven bien, y la conciliación demuestra que el pipeline las mantiene consistentes. Limitaciones: solo hay seis fechas, Cassandra corre con factor de replicación uno en un nodo y el grafo se acota a diez entidades por lista para controlar su tamaño. Son decisiones del entorno local del curso, no de la arquitectura.');
+  // ===== 19. Dashboard 2 =====
+  s = content('Documentos consulta MongoDB y Relaciones consulta Neo4j: cuatro vistas, tres bases', 'Resultados',
+    'Capturas del dashboard de Streamlit, fecha 06/11/2026 (docs/evidencias_2026-11-16/capturas)',
+    segs(19, 'Dashboard: Documentos y Relaciones', [['L', 'Las otras dos pestañas muestran las bases restantes. Documentos consulta MongoDB: permite filtrar por tema exacto o por organización y abrir un documento completo. Relaciones consulta Neo4j: muestra cuántos registros, relaciones con temas y relaciones con organizaciones hay, qué tan concentrada está la agenda y qué actores aparecen juntos. Con estas cuatro pestañas, el dashboard cumple el requisito de conectar las tres bases en una sola interfaz.'],
+      ['C', 'DEMOSTRACIÓN EN VIVO, pestaña Documentos. Escribir una organización, por ejemplo reuters, y pulsar Consultar documentos. Decir: aquí MongoDB devuelve los registros tal como llegaron, con sus listas de temas y organizaciones. Abrir un registro en Documento completo y mostrar el JSON.', 40],
+      ['F', 'DEMOSTRACIÓN EN VIVO, pestaña Relaciones. Mostrar las tarjetas de nodos y relaciones, bajar a Actores que aparecen juntos y señalar el par oval office y white house. Decir: esto lo responde Neo4j recorriendo aristas, sin joins.', 40]]));
+  img(s, 'documentos_explorador', M, 1.4, 4.0, 3.5, 'Pestaña Documentos: explorador de MongoDB');
+  img(s, 'relaciones_resumen', 4.8, 1.4, 4.7, 3.5, 'Pestaña Relaciones: métricas del grafo de Neo4j');
+  s.addText('Documentos (MongoDB)', { x: M, y: 4.95, w: 4.0, h: 0.25, isTextBox: true, margin: 0, align: 'center', fontFace: F, fontSize: 12, color: K.muted });
+  s.addText('Relaciones (Neo4j)', { x: 4.8, y: 4.95, w: 4.7, h: 0.25, isTextBox: true, margin: 0, align: 'center', fontFace: F, fontSize: 12, color: K.muted });
+
+  // ===== 20. Discusión =====
+  s = content('La arquitectura responde la pregunta, con límites de escala que conviene declarar', 'Cierre', null,
+    segs(20, 'Discusión', [
+      ['M', 'Como interpretación, cada base cubre una consulta propia que las otras no resuelven bien, y la conciliación confirma que el pipeline las mantiene consistentes. En términos de diseño, esto confirma que la persistencia políglota tiene sentido cuando los patrones de acceso son distintos. Su costo es operativo: hay tres sistemas que mantener, y por eso el orquestador y la conciliación son piezas centrales.'],
+      ['F', 'También debemos declarar los límites. Solo cargamos seis fechas. Cassandra corre en un solo nodo con factor de replicación uno, y el grafo se limita a diez entidades por lista. Son decisiones del entorno local del curso, no de la arquitectura. Como trabajo futuro, nos interesa cargar más fechas, escalar Cassandra a varios nodos y agregar indicadores de grafo, como el grado de las organizaciones.']]));
   head(s, 'Interpretación', M, 1.5, 4.3);
   bullets(s, ['Cada base cubre una consulta propia', 'La conciliación lo confirma'], M, 1.95, 4.3, 2.6);
   head(s, 'Limitaciones', 5.2, 1.5, 4.3);
   bullets(s, ['Solo seis fechas cargadas', 'Cassandra: un nodo, RF 1', 'Grafo: 10 entidades por lista'], 5.2, 1.95, 4.3, 2.9);
 
-  // ===== 17. Conclusiones =====
+  // ===== 21. Conclusiones =====
   pres.addSection({ title: 'Conclusiones' });
   s = pres.addSlide({ masterName: 'CIERRE', sectionTitle: 'Conclusiones' });
   s.addText('Conclusiones', { placeholder: 'title' });
@@ -290,9 +358,12 @@ const chartBase = {
   ], { x: M, y: 1.0, w: 9.0, h: 3.0, isTextBox: true, margin: 0, fontFace: F, fontSize: 22, color: K.white, valign: 'top', paraSpaceAfter: 18 });
   s.addText('Código y evidencias: github.com/KarolayTamayoH/global-news-intelligence', { x: M, y: 4.5, w: 9.0, h: 0.4, isTextBox: true, margin: 0, fontFace: F, fontSize: 15, color: 'A0BBDD' });
   s.addText('¿Hay preguntas o comentarios?', { x: M, y: 4.9, w: 9.0, h: 0.4, isTextBox: true, margin: 0, fontFace: F, fontSize: 15, color: 'A0BBDD' });
-  s.addNotes('Cierre. Esta diapositiva se queda en pantalla durante las preguntas. Repetir el mensaje: cada base resuelve un patrón de acceso distinto y el pipeline las mantiene conciliadas.');
+  s.addNotes(segs(21, 'Conclusiones', [
+    ['F', 'Concluimos. Primero, cada base resuelve un patrón de acceso distinto: documentos, KPIs por fecha y relaciones.'],
+    ['A', 'Segundo, el DAG de Airflow automatiza las seis etapas, desde la descarga hasta los indicadores.'],
+    ['L', 'Y tercero, las tres bases concilian: cuatrocientos tres mil novecientos cuarenta y uno registros con diferencia cero. El código y las evidencias están en el repositorio. Quedamos atentos a preguntas y comentarios.']]));
 
-  // ===== 18. Referencias =====
+  // ===== Referencias =====
   pres.addSection({ title: 'Referencias' });
   s = pres.addSlide({ masterName: 'CONTENIDO', sectionTitle: 'Referencias' });
   s.addText('Referencias', { placeholder: 'title' });
@@ -306,9 +377,9 @@ const chartBase = {
     'Tamayo, M. K., et al. (2026). Global News Intelligence [Código fuente]. https://github.com/KarolayTamayoH/global-news-intelligence',
   ];
   s.addText(refs.map((r, i) => ({ text: r, options: { breakLine: i < refs.length - 1 } })), { x: M, y: 1.0, w: 9.0, h: 4.2, isTextBox: true, margin: 0, fontFace: F, fontSize: 13, color: K.body, valign: 'top', paraSpaceAfter: 8 });
-  s.addNotes('Referencias completas de todas las fuentes citadas en la presentación.');
+  s.addNotes('Referencias completas de todas las fuentes citadas. Esta diapositiva no se narra en el video.');
 
-  // ===== Apéndice A =====
+  // ===== Apéndices =====
   pres.addSection({ title: 'Apéndice' });
   s = pres.addSlide({ masterName: 'CONTENIDO', sectionTitle: 'Apéndice' });
   s.addText('Apéndice A: el CRUD funciona en las tres bases y Cassandra se recupera tras reiniciar', { placeholder: 'title' });
@@ -319,9 +390,8 @@ const chartBase = {
   });
   s.addTable(ar, { x: M, y: 1.5, w: 7.0, colW: [2.8, 1.4, 1.5, 1.3], rowH: 0.5, ...tblOpts, objectName: 'Tabla CRUD' });
   s.addText('Fuente: docs/crud_verification.json y docs/cassandra_recovery_verification.json', { x: M, y: 5.2, w: 8.3, h: 0.3, isTextBox: true, margin: 0, fontFace: F, fontSize: 12, color: K.muted });
-  s.addNotes('Pregunta anticipada: ¿está probado el CRUD? Sí, en las tres bases, con eliminación de los datos de prueba. La recuperación de Cassandra tras reiniciar también está verificada.');
+  s.addNotes('Pregunta anticipada: ¿está probado el CRUD? Sí, en las tres bases, con eliminación de los datos de prueba. La recuperación de Cassandra tras reiniciar también está verificada. Responde: Caroline (MongoDB), Mayra (Cassandra) o Fabricio (Neo4j) según la base.');
 
-  // ===== Apéndice B =====
   s = pres.addSlide({ masterName: 'CONTENIDO', sectionTitle: 'Apéndice' });
   s.addText('Apéndice B: guardar todo en una sola base obligaría a perder consultas o a recalcular', { placeholder: 'title' });
   const br = [['Base única', 'Qué se pierde'].map(t => ({ text: t, options: { ...TH, fontSize: 16 } }))];
@@ -330,9 +400,16 @@ const chartBase = {
     br.push(r.map(t => ({ text: t, options: { fontFace: F, fontSize: 18, color: K.body, ...f } })));
   });
   s.addTable(br, { x: M, y: 1.6, w: 9.0, colW: [2.8, 6.2], rowH: [0.45, 0.8, 0.8, 0.8], ...tblOpts, objectName: 'Tabla de alternativas' });
-  s.addNotes('Pregunta anticipada: ¿por qué no usar solo una base? Cada alternativa pierde una de las tres consultas que el proyecto necesita.');
+  s.addNotes('Pregunta anticipada: ¿por qué no usar solo una base? Cada alternativa pierde una de las tres consultas que el proyecto necesita. Responde Abel o quien tenga la palabra.');
+
+  s = pres.addSlide({ masterName: 'CONTENIDO', sectionTitle: 'Apéndice' });
+  s.addText('Apéndice C: el dashboard muestra el DAG de ocho tareas y su ejecución completa', { placeholder: 'title' });
+  img(s, 'panorama_flujo', M, 1.5, 9.0, 3.4, 'Diagrama del DAG de Airflow mostrado en la pestaña Panorama del dashboard');
+  s.addText('Fuente: pestaña Panorama del dashboard, sección «Cómo viajan los datos» (docs/evidencias_2026-11-16/capturas)', { x: M, y: 5.2, w: 8.3, h: 0.3, isTextBox: true, margin: 0, fontFace: F, fontSize: 12, color: K.muted });
+  s.addNotes('Apoyo para la diapositiva del DAG: es el mismo diagrama que dibuja el dashboard, con las ocho tareas y la rama paralela de Cassandra y Neo4j.');
 
   await pres.writeFile({ fileName: OUT });
   await applyTheme(OUT, THEME);
-  console.log('ok');
+  require('fs').writeFileSync(OUT.replace(/\.pptx$/, '_guion.json'), JSON.stringify({ GUION, TOTALS, total: clock.t }, null, 1), 'utf-8');
+  console.log('ok', mmss(clock.t), JSON.stringify(Object.fromEntries(Object.entries(TOTALS).map(([k, v]) => [NAMES[k], mmss(v)]))));
 })().catch(e => { console.error(e); process.exit(1); });
