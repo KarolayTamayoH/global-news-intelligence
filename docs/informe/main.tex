@@ -145,14 +145,14 @@ Diseñar e implementar una arquitectura multimodelo, orquestada con Apache Airfl
     \item Automatizar la descarga, validación y transformación de archivos diarios GKG con reintentos y trazabilidad por etapa.
     \item Almacenar cada tipo de dato en la base de datos cuyo modelo responde mejor a su patrón de consulta, y justificar técnicamente cada decisión.
     \item Cargar de manera idempotente los registros en MongoDB, las métricas agregadas en Cassandra y el grafo de relaciones en Neo4j.
-    \item Calcular de forma automática seis indicadores y reconciliar los resultados entre las tres bases.
+    \item Calcular de forma automática seis indicadores de negocio y cinco indicadores relacionales sobre el grafo, y reconciliar los resultados entre las tres bases.
     \item Demostrar las operaciones de creación, consulta, actualización y eliminación en cada base.
     \item Exponer los resultados en un tablero que consulte directamente MongoDB, Cassandra y Neo4j.
 \end{itemize}
 
 \subsection{Organización del informe}
 
-La sección~\ref{sec:problema} plantea el problema y su alcance. La sección~\ref{sec:arquitectura} describe la arquitectura y la justificación de cada base. La sección~\ref{sec:dataset} caracteriza el conjunto de datos. Las secciones~\ref{sec:mongo}, \ref{sec:cassandra} y~\ref{sec:neo4j} detallan el modelo de cada base. La sección~\ref{sec:dag} explica el DAG de Airflow, la sección~\ref{sec:kpis} define los indicadores y la sección~\ref{sec:dashboard} presenta el tablero. Finalmente, la sección~\ref{sec:conclusiones} resume los resultados, las dificultades y las limitaciones. El anexo recoge la estructura del repositorio y los comandos de ejecución.
+La sección~\ref{sec:problema} plantea el problema y su alcance. La sección~\ref{sec:arquitectura} describe la arquitectura y la justificación de cada base. La sección~\ref{sec:dataset} caracteriza el conjunto de datos. Las secciones~\ref{sec:mongo}, \ref{sec:cassandra} y~\ref{sec:neo4j} detallan el modelo de cada base. La sección~\ref{sec:dag} explica el flujo de Airflow, la sección~\ref{sec:kpis} define los indicadores y la sección~\ref{sec:dashboard} presenta el tablero. Finalmente, la sección~\ref{sec:conclusiones} resume los resultados, las dificultades y las limitaciones.
 
 % -------------------------------------------------------------
 \section{Descripción del problema}\label{sec:problema}
@@ -186,7 +186,7 @@ La arquitectura multimodelo se justifica porque las tres necesidades de la secci
 
 \subsection{Alcance}
 
-El proyecto cubre la ingesta diaria de archivos GKG, la carga en las tres bases, el cálculo de seis indicadores y su visualización. El despliegue es local, con Docker Compose, y está pensado como entorno académico: una instancia por base y sin alta disponibilidad. No se procesa el texto completo de los artículos ni se enriquecen las entidades con fuentes externas.
+El proyecto cubre la ingesta diaria de archivos GKG, la carga en las tres bases, el cálculo de seis indicadores de negocio, cinco indicadores relacionales sobre el grafo y su visualización. El despliegue es local, con Docker Compose, y está pensado como entorno académico: una instancia por base y sin alta disponibilidad. No se procesa el texto completo de los artículos ni se enriquecen las entidades con fuentes externas.
 
 % -------------------------------------------------------------
 \section{Arquitectura propuesta}\label{sec:arquitectura}
@@ -203,7 +203,7 @@ La figura~\ref{fig:arquitectura} muestra los componentes y el flujo de datos. Ai
     \node[box=neutralcolor, minimum width=2.8cm] (src) {GDELT GKG\\archivo ZIP diario};
     \node[box=airflowcolor, right=2.6cm of src, minimum width=4.4cm, minimum height=1.5cm] (air)
         {Apache Airflow 2.11.1\\DAG \code{global_news_ingestion}};
-    \node[box=neutralcolor, right=1.8cm of air, minimum width=3.2cm] (store) {Artefactos compartidos\\ZIP, JSONL, informe};
+    \node[box=neutralcolor, right=1.8cm of air, minimum width=3.2cm] (store) {Almacén de artefactos};
     \node[box=neutralcolor, above=0.9cm of air, minimum width=3.2cm] (pg) {PostgreSQL 16\\metadatos de Airflow};
     \node[box=mongocolor, below=1.7cm of air, minimum width=4.4cm, minimum height=1.3cm] (mongo)
         {MongoDB 8.0\\documentos GKG e historiales};
@@ -212,7 +212,7 @@ La figura~\ref{fig:arquitectura} muestra los componentes y el flujo de datos. Ai
     \node[box=neocolor, below right=1.6cm and 0.2cm of mongo, minimum width=4cm] (neo)
         {Neo4j 5.26\\grafo de relaciones};
     \node[box=primarycolor, below=1.4cm of $(cass)!0.5!(neo)$, minimum width=4.4cm] (dash)
-        {Tablero Streamlit\\3 vistas y 6 KPIs};
+        {Tablero Streamlit\\3 vistas y 11 indicadores};
 
     \draw[flow] (src) -- node[lab] {descarga HTTPS} (air);
     \draw[flow] (air) -- node[lab] {publica} (store);
@@ -244,7 +244,7 @@ Componente & Rol en la solución \\
 \midrule
 GDELT GKG & Fuente externa. Publica un archivo ZIP por día con un CSV separado por tabuladores. \\
 Apache Airflow & Orquesta las ocho tareas, aplica reintentos, programa la ejecución diaria y deja trazabilidad. \\
-Directorio de artefactos & Almacena el ZIP original, el JSONL transformado y el informe de indicadores. Evita enviar datos voluminosos por XCom. \\
+Almacén de artefactos & Conserva temporalmente el archivo original y los resultados intermedios para evitar transferencias voluminosas entre tareas. \\
 MongoDB & Sistema de registro de los documentos GKG y de los historiales de ingesta y de ejecución. \\
 Cassandra & Sirve las métricas diarias, las frecuencias de temas y organizaciones y sus versiones. \\
 Neo4j & Almacena el grafo de registros, temas y organizaciones. \\
@@ -318,7 +318,7 @@ Streamlit / pandas / Plotly & 1.66.1 / 3.1.0 / 7.1.0 & Tablero y gráficos \\
 \caption{Tecnologías y versiones utilizadas.}
 \end{table}
 
-El despliegue se define en \code{compose.yaml} (las tres bases) y \code{compose.airflow.yaml} (Airflow y PostgreSQL), que comparten red y proyecto. Los puertos locales son 27018 (MongoDB), 9043 (Cassandra), 7688 y 7475 (Neo4j, Bolt y navegador) y 8080 (Airflow). Los datos de las bases se persisten en volúmenes de Docker y los artefactos del DAG en el directorio \path{data/} montado en el contenedor.
+El despliegue utiliza Docker Compose para ejecutar las tres bases de datos y el entorno de Airflow con PostgreSQL, compartiendo una red local entre servicios. Las bases persisten sus datos en volúmenes administrados por el entorno de despliegue y los artefactos intermedios se almacenan en un espacio compartido montado por el planificador. Los puertos locales son 27018 para MongoDB, 9043 para Cassandra, 7688 y 7475 para Neo4j por Bolt y navegador, y 8080 para Airflow.
 
 % -------------------------------------------------------------
 \section{Descripción del dataset}\label{sec:dataset}
@@ -435,19 +435,19 @@ Una exploración inicial sobre una muestra del archivo del 22 de octubre de 2026
 
 \subsection{Actualización periódica}
 
-El DAG se ejecuta cada día a las 06:00 UTC (01:00 en Lima) y procesa la partición del día anterior al fin del intervalo de datos. La ejecución programada se verificó con una corrida real del planificador (sección~\ref{sec:dag}). La ejecución manual admite una fecha objetivo mediante la configuración \code{target_date}.
+El DAG se ejecuta cada día a las 06:00 UTC (01:00 en Lima) y procesa la partición del día anterior al fin del intervalo de datos. La ejecución programada se verificó con una corrida real del planificador (sección~\ref{sec:dag}).
 
 \subsection{Validación y limpieza}
 
 El proceso de validación y limpieza se aplica antes de escribir en cualquier base:
 
 \begin{enumerate}
-    \item Descarga a un archivo temporal \code{.part}. El archivo solo se renombra si el ZIP es íntegro y contiene exactamente el CSV esperado.
+    \item Descarga de una copia temporal: el archivo solo se publica como disponible si el descargado es íntegro y contiene exactamente el CSV esperado.
     \item Verificación del esquema: las once columnas esperadas, en su orden.
     \item Verificación de cada fila: número de columnas, formato de fecha (ocho o catorce dígitos), coincidencia con el día del archivo y valor numérico en \code{NUMARTS}. Un solo registro inválido detiene la partición.
     \item Transformación: separación de los campos multivalor por punto y coma, recorte de espacios, descarte de elementos vacíos y conversión a JSON.
     \item Identificación: el identificador es el hash SHA-256 de la cadena \code{archivo:fila}, lo que hace idempotente la reejecución de un mismo archivo.
-    \item Control de conteo: el JSONL debe contener exactamente los registros validados antes de publicarse.
+    \item Control de conteo: el conjunto estructurado debe contener exactamente los registros validados antes de publicarse.
 \end{enumerate}
 
 % -------------------------------------------------------------
@@ -470,7 +470,7 @@ La base \code{global_news} contiene una colección de datos y tres de control. L
         \code{locations_raw}, \code{tone_raw}\\ \code{counts_raw}, \code{cameo_event_ids_raw}\\ \code{source_file}};
     \node[col, right=2.6cm of gkg, yshift=2.2cm, minimum width=5cm] (pipe) {\textbf{pipeline\_history}\\[2pt]
         \code{_id} (run\_id), \code{date}, \code{status}\\ \code{started_at}, \code{completed_at}\\
-        \code{stages.<etapa>.status}\\ \code{stages.<etapa>.started_at}\\ \code{records}, \code{report_uri}};
+        \code{stages.<etapa>.status}\\ \code{stages.<etapa>.started_at}\\ \code{records}, \code{resultados}};
     \node[col, below=0.5cm of pipe, minimum width=5cm] (ing) {\textbf{ingestion\_history}\\[2pt]
         \code{_id} (archivo), \code{date}\\ \code{status}, \code{records}\\ \code{processed}, \code{inserted}, \code{existing}};
     \node[col, below=0.5cm of ing, minimum width=5cm] (neoh) {\textbf{neo4j\_ingestion\_history}\\[2pt]
@@ -547,30 +547,9 @@ El registro GKG es un documento con arreglos de longitud variable y campos opcio
 
 La carga usa \code{UpdateOne} con \code{upsert} y \code{$setOnInsert}: si el documento ya existe, no se modifica. Esto permite reejecutar una partición sin duplicar registros, lo que se comprobó en la repetición de la partición del 27 de octubre, que insertó cero documentos nuevos.
 
-\subsection{Operaciones CRUD}
+\subsection{Implementación funcional}
 
-Los ejemplos usan \code{mongosh} sobre la colección \code{crud_demo}, aislada de los datos GKG. La demostración automatizada ejecuta la misma secuencia con PyMongo y verifica cada paso.
-
-\begin{lstlisting}[language=]
-// Crear
-db.crud_demo.insertOne({_id: "crud-001", value: 1, purpose: "course-demo"})
-// Consultar
-db.crud_demo.findOne({_id: "crud-001"})
-// Actualizar
-db.crud_demo.updateOne({_id: "crud-001"}, {$set: {value: 2}})
-// Eliminar
-db.crud_demo.deleteOne({_id: "crud-001"})
-\end{lstlisting}
-
-Consulta de ejemplo sobre los datos reales: registros de una fecha que contienen un tema.
-
-\begin{lstlisting}[language=]
-db.gkg_records.find({date: "20261106", themes: "EPU_POLICY"}).limit(5)
-\end{lstlisting}
-
-\subsection{Referencias}
-
-Esquema: \path{scripts/mongodb/schema.json}. Creación de colecciones e índices: \path{scripts/bootstrap_databases.py}. Carga: \path{src/ingestion/load_mongodb.py}. Demostración de CRUD: \path{scripts/crud_demo.py}, con resultado en \path{docs/crud_verification.json}.
+La colección aplica índices por identificador compuesto, fecha y origen, y conserva el registro original junto con sus listas. La carga es idempotente: repetir una fecha reemplaza los documentos existentes sin duplicarlos. La demostración CRUD confirmó creación, consulta, actualización y eliminación sobre datos de prueba, seguidas de una limpieza que dejó intactos los registros GKG.
 
 % -------------------------------------------------------------
 \section{Modelo de datos de Cassandra}\label{sec:cassandra}
@@ -632,7 +611,7 @@ Cassandra no ofrece transacciones entre filas ni particiones. Para que el tabler
     \item Inserta, en una sola mutación, la fila de \code{daily_news_metrics} con las métricas y el UUID. Esa escritura publica la versión.
 \end{enumerate}
 
-Si el proceso falla antes del último paso, la versión visible anterior permanece intacta. Esta propiedad se verificó con una falla inducida tras 25 escrituras y un reintento posterior (\path{docs/cassandra_recovery_verification.json}).
+Si el proceso falla antes del último paso, la versión visible anterior permanece intacta. Esta propiedad se verificó mediante una falla inducida tras 25 escrituras y un reintento posterior que publicó una generación nueva.
 
 \subsection{Sentencias de creación}
 
@@ -664,7 +643,7 @@ CREATE TABLE IF NOT EXISTS global_news_analytics.daily_organization_metrics_vers
 
 Las métricas son agregados diarios que se escriben una vez y se leen siempre por fecha. La clave de partición \code{metric_group} con el orden descendente por \code{news_date} entrega la serie temporal ya ordenada. Las frecuencias se leen por fecha completa, por lo que \code{(news_date, generation)} agrupa en una partición todas las filas de una versión. Cassandra escala de forma horizontal con el crecimiento diario de los datos y sus escrituras son idempotentes por clave. A cambio, se renuncia a uniones y a consultas arbitrarias, y los rankings se ordenan en la aplicación.
 
-La configuración del proyecto usa un solo nodo con \code{SimpleStrategy} y factor de replicación 1. Es adecuada para el entorno académico. Un despliegue productivo requeriría la estrategia de replicación por centro de datos (\path{NetworkTopologyStrategy}) y al menos tres réplicas.
+La configuración del proyecto usa un solo nodo con factor de replicación 1. Es adecuada para el entorno académico. Un despliegue productivo requeriría una estrategia de replicación por centro de datos y al menos tres réplicas.
 
 \subsection{Operaciones CRUD}
 
@@ -689,10 +668,6 @@ SELECT news_date, total_records, unique_themes, average_tone
 FROM daily_news_metrics WHERE metric_group = 'global' LIMIT 10;
 \end{lstlisting}
 
-\subsection{Referencias}
-
-Script de creación: \path{scripts/cassandra/schema.cql}, ejecutado por \path{scripts/bootstrap_databases.py}. Agregación y publicación: \path{src/transformation/aggregate_snapshot.py}. Demostración de CRUD: \path{scripts/crud_demo.py}.
-
 % -------------------------------------------------------------
 \section{Modelo de grafo en Neo4j}\label{sec:neo4j}
 % -------------------------------------------------------------
@@ -701,16 +676,8 @@ Script de creación: \path{scripts/cassandra/schema.cql}, ejecutado por \path{sc
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-    n/.style={circle, draw=#1, fill=#1!15, thick, font=\small, align=center, minimum size=2.3cm},
-    rel/.style={-{Stealth[length=3mm]}, thick, color=neutralcolor}]
-    \node[n=cassandracolor] (r) {GKGRecord\\{\scriptsize id, date,}\\{\scriptsize num\_articles}};
-    \node[n=neocolor, left=4.2cm of r] (t) {Theme\\{\scriptsize name}};
-    \node[n=mongocolor, right=4.2cm of r] (o) {Organization\\{\scriptsize name}};
-    \draw[rel] (r) -- node[above, font=\small] {\code{HAS_THEME}} (t);
-    \draw[rel] (r) -- node[above, font=\small] {\code{MENTIONS_ORG}} (o);
-\end{tikzpicture}
-\caption{Esquema del grafo: un registro se vincula con los temas y las organizaciones que menciona.}
+\includegraphics[width=0.92\textwidth]{figs/neo4j_modelo_grafo_relaciones.png}
+\caption{Modelo del grafo: un registro GKG se vincula con los temas y las organizaciones que menciona.}
 \label{fig:grafo}
 \end{figure}
 
@@ -796,24 +763,24 @@ ORDER BY registros DESC LIMIT 10
 
 \begin{lstlisting}[language=]
 // Crear nodos
-CREATE (a:CrudDemo {run_id: 'demo', kind: 'record', value: 1}),
-       (b:CrudDemo {run_id: 'demo', kind: 'entity'})
+CREATE (a:CrudDemo {demo_id: 'record', kind: 'record', value: 1}),
+       (b:CrudDemo {demo_id: 'entity', kind: 'entity'})
 // Crear relacion
-MATCH (a:CrudDemo {run_id: 'demo', kind: 'record'}),
-      (b:CrudDemo {run_id: 'demo', kind: 'entity'})
-CREATE (a)-[:DEMO_RELATION {value: 1}]->(b)
+MATCH (a:CrudDemo {demo_id: 'record', kind: 'record'}),
+      (b:CrudDemo {demo_id: 'entity', kind: 'entity'})
+CREATE (a)-[:DEMO_RELATION {value: 1}]->(b);
 // Consultar
-MATCH (a:CrudDemo {run_id: 'demo'})-[r:DEMO_RELATION]->(b) RETURN a.value, r.value
+MATCH (a:CrudDemo {demo_id: 'record'}),
+      (b:CrudDemo {demo_id: 'entity'})
+OPTIONAL MATCH (a)-[r:DEMO_RELATION]->(b)
+RETURN a.value, r.value;
 // Actualizar propiedades
-MATCH (a:CrudDemo {run_id: 'demo'})-[r:DEMO_RELATION]->() SET a.value = 2, r.value = 2
-// Eliminar la relacion y luego los nodos
-MATCH (:CrudDemo {run_id: 'demo'})-[r:DEMO_RELATION]->() DELETE r
-MATCH (n:CrudDemo {run_id: 'demo'}) DETACH DELETE n
+MATCH (a:CrudDemo {demo_id: 'record'})-[r:DEMO_RELATION]->()
+SET a.value = 2, r.value = 2;
+// Eliminar relación y nodos de demostración
+MATCH (:CrudDemo {demo_id: 'record'})-[r:DEMO_RELATION]->() DELETE r;
+MATCH (n:CrudDemo) WHERE n.demo_id IN ['record', 'entity'] DETACH DELETE n;
 \end{lstlisting}
-
-\subsection{Referencias}
-
-Restricciones: \path{scripts/neo4j/schema.cypher}. Carga: \path{src/ingestion/load_neo4j.py}. Demostración de CRUD: \path{scripts/crud_demo.py}.
 
 % -------------------------------------------------------------
 \section{Explicación del DAG de Airflow}\label{sec:dag}
@@ -857,6 +824,13 @@ El DAG \code{global_news_ingestion} tiene ocho tareas definidas con la API TaskF
 \label{fig:dag}
 \end{figure}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{figs/airflow_dags_registered.png}
+\caption{DAG registrado en la interfaz de Airflow.}
+\label{fig:airflow-dags}
+\end{figure}
+
 \subsection{Tareas}
 
 \begin{table}[H]
@@ -866,20 +840,27 @@ El DAG \code{global_news_ingestion} tiene ocho tareas definidas con la API TaskF
 \toprule
 Etapa y tarea & Descripción & Entrada & Salida \\
 \midrule
-\code{select_partition} & Determina la fecha de la partición: la configuración manual o el día anterior al fin del intervalo. Genera el prefijo de artefactos de la ejecución. & Configuración, intervalo y \code{run_id} & Fecha, \code{run_id} y prefijo \\
-1. \code{extract} & Descarga el ZIP desde GDELT (o reutiliza uno local válido) y lo publica como artefacto. & Fecha & URI del ZIP \\
-2. \code{validate} & Verifica integridad, esquema y cada fila del archivo. & URI del ZIP & Número de registros validados \\
-2. \code{transform} & Convierte el CSV en JSONL y comprueba que el conteo coincida con el validado. & URI del ZIP & URI del JSONL \\
-3. \code{load_mongodb} & Carga los documentos con \code{upsert} y compara el conteo en MongoDB con el validado. & URI del JSONL & Documentos en MongoDB \\
-4. \code{aggregate_cassandra} & Calcula métricas y frecuencias desde MongoDB y publica una versión en Cassandra. & Fecha & Estado \\
-5. \code{load_neo4j} & Crea nodos y relaciones con \code{MERGE} y verifica el conteo de registros. & Fecha & Estado \\
-6. \code{generate_indicators} & Reconcilia las tres bases, calcula los seis KPIs y publica el informe de indicadores. & Resultados de las dos ramas & \code{indicators.json} y estado final \\
+\code{select_partition} & Determina la fecha de la partición: la configuración manual o el día anterior al fin del intervalo. & Configuración e intervalo & Fecha de procesamiento \\
+1. \code{extract} & Descarga el archivo diario desde GDELT o reutiliza una copia local válida. & Fecha & Archivo descargado \\
+2. \code{validate} & Verifica integridad, esquema y cada fila del archivo. & Archivo diario & Número de registros validados \\
+2. \code{transform} & Convierte el CSV a registros estructurados y comprueba que el conteo coincida con el validado. & Archivo diario & Registros transformados \\
+3. \code{load_mongodb} & Carga los documentos con actualizaciones idempotentes y compara el conteo con el validado. & Registros transformados & Documentos en MongoDB \\
+4. \code{aggregate_cassandra} & Calcula métricas y frecuencias desde MongoDB y publica una versión en Cassandra. & Fecha & Estado de agregación \\
+5. \code{load_neo4j} & Crea nodos y relaciones y verifica el conteo de registros. & Fecha & Estado de carga \\
+6. \code{generate_indicators} & Reconcilia las tres bases, calcula seis KPIs de negocio y cinco indicadores relacionales, y publica el reporte consolidado. & Resultados de las dos ramas & Indicadores y estado final \\
 \bottomrule
 \end{tabularx}
 \caption{Tareas del DAG. Todas son tareas \code{@task} de TaskFlow, que Airflow ejecuta mediante el operador de Python.}
 \end{table}
 
-La lógica de cada tarea reside en \path{src/pipeline/tasks.py}, sin dependencia de Airflow, de modo que \path{scripts/run_pipeline.py} puede ejecutar la misma secuencia desde la terminal. Cada etapa registra en \code{pipeline_history} su estado (\code{processing}, \code{completed} o \code{failed}) y sus marcas de tiempo.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{figs/airflow_gantt_execution.png}
+\caption{Vista Gantt de una ejecución, que permite observar la duración y las dependencias entre tareas.}
+\label{fig:airflow-gantt}
+\end{figure}
+
+La lógica de las tareas está separada del planificador, de modo que el mismo flujo puede ejecutarse de forma secuencial o mediante Airflow. Cada etapa registra su estado (processing, completed o failed) y sus marcas de tiempo.
 
 \subsection{Programación}
 
@@ -927,7 +908,7 @@ def global_news_ingestion():
 
 \subsection{Verificación de una ejecución programada}
 
-La ejecución \code{scheduled__2026-11-06T06:00:00+00:00} fue lanzada por el planificador, no de forma manual. Procesó la fecha 6 de noviembre de 2026 y terminó con estado \code{success} en las ocho tareas, en cerca de 2 minutos y 40 segundos.
+La ejecución programada del 6 de noviembre de 2026 fue lanzada por el planificador, no de forma manual. Procesó la partición correspondiente y terminó con éxito en las ocho tareas, en cerca de 2 minutos y 40 segundos.
 
 \begin{table}[H]
 \centering
@@ -946,13 +927,29 @@ Relaciones \code{MENTIONS_ORG} en Neo4j & 235\,993 \\
 \caption{Reconciliación de la ejecución programada del 6 de noviembre de 2026.}
 \end{table}
 
-Además, la partición del 27 de octubre se ejecutó dos veces con fechas de ejecución distintas. La repetición insertó cero documentos nuevos y conservó los mismos conteos, lo que demuestra la idempotencia del flujo. La evidencia está en \path{docs/airflow_scheduled_verification.json}, \path{docs/airflow_verification_first.json} y \path{docs/airflow_verification_repeat.json}.
+Además, la partición del 27 de octubre se ejecutó dos veces con fechas de ejecución distintas. La repetición insertó cero documentos nuevos y conservó los mismos conteos, lo que demuestra la idempotencia del flujo.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figs/airflow_gantt_full_execution.png}
+\caption{Vista Gantt de la ejecución completa: las ocho tareas terminan satisfactoriamente y las ramas Cassandra y Neo4j se ejecutan en paralelo.}
+\label{fig:airflow-gantt-completa}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{figs/airflow_generate_indicators.png}
+\caption{Registro de la tarea final de generación de indicadores y reconciliación.}
+\label{fig:airflow-indicadores}
+\end{figure}
 
 % -------------------------------------------------------------
 \section{KPIs implementados}\label{sec:kpis}
 % -------------------------------------------------------------
 
-El pipeline calcula seis indicadores de forma automática. Los valores se calculan en la etapa de agregación a partir de los documentos de MongoDB y se almacenan y sirven desde Cassandra. La etapa final los reconcilia con las tres bases. Los KPI 1, 2, 4 y 5 se leen de \code{daily_news_metrics}, el KPI 3 de las tablas de frecuencia de temas y el KPI 6 de las de organizaciones. Esta sección define primero la notación, luego desglosa cada fórmula con un ejemplo numérico del 6 de noviembre de 2026 y finalmente resume los resultados.
+El sistema implementa seis indicadores de negocio y cinco indicadores relacionales complementarios. Los seis primeros se calculan a partir de los documentos GKG y se sirven desde Cassandra. Los cinco relacionales se derivan de los recorridos sobre el grafo Neo4j y permiten analizar concentración, co-ocurrencia y afinidad entre entidades.
+
+Esta sección define primero la notación, luego desglosa cada fórmula con un ejemplo numérico del 6 de noviembre de 2026 y finalmente resume los resultados.
 
 \subsection{Notación}
 
@@ -1036,6 +1033,58 @@ g_t(o) = \bigl\lvert \{\, r \in R_t : o \in \mathrm{org}(r) \,\} \bigr\rvert
 
 La frecuencia $g_t(o)$ es la cantidad de registros de la fecha $t$ que mencionan a la organización $o$, contada una vez por registro. El indicador publica las diez organizaciones con mayor $g_t(o)$. Ejemplo: \code{united states} es mencionada en $g_t(o) = 7\,557$ registros del 6 de noviembre.
 
+\subsection{Indicadores relacionales}
+
+\subsubsection{R1: concentración del Top 10 de entidades}
+
+Sea $m(e)$ el número de registros GKG que contienen la entidad $e$. Si $E_{10}$ representa las diez entidades con mayor frecuencia,
+
+\begin{equation*}
+C_{10} = \frac{\sum_{e \in E_{10}} m(e)}{\sum_{e \in E} m(e)} \times 100
+\end{equation*}
+
+Este indicador mide qué proporción de las menciones del grafo se concentra en las diez entidades principales. En la vista analizada, el Top 10 reúne aproximadamente el $11{,}1\,\%$ de las menciones.
+
+\subsubsection{R2: índice de entidades de mención única}
+
+Sea $E_1$ el conjunto de entidades que aparecen exactamente una vez en los registros GKG analizados:
+
+\begin{equation*}
+S = \frac{|E_1|}{|E|} \times 100
+\end{equation*}
+
+El índice cuantifica la longitud de la cola de entidades poco frecuentes. En la captura analizada alcanza aproximadamente el $69{,}6\,\%$, por lo que una gran parte de los actores aparece aislada en una sola contribución.
+
+\subsubsection{R3: conectividad promedio por registro}
+
+Sea $H_t$ el número total de relaciones \code{HAS_THEME} y $O_t$ el número total de relaciones \code{MENTIONS_ORG} de la fecha $t$:
+
+\begin{equation*}
+K_t = \frac{H_t + O_t}{V_t}
+\end{equation*}
+
+La medida representa cuántas relaciones temáticas y organizacionales conserva, en promedio, cada registro GKG dentro del límite de diez entidades por categoría. En la fecha 27 de octubre se obtuvieron aproximadamente $11{,}2$ relaciones por registro.
+
+\subsubsection{R4: co-ocurrencia de organizaciones}
+
+Para dos organizaciones $o_i$ y $o_j$, la co-ocurrencia cuenta los registros GKG que contienen ambas:
+
+\begin{equation*}
+C(o_i,o_j) = \left|\{r \in R_t : o_i \in \mathrm{org}(r) \land o_j \in \mathrm{org}(r)\}\right|
+\end{equation*}
+
+Este indicador identifica pares institucionales que aparecen juntos en una misma noticia. En la vista analizada, \code{united states} y \code{associated press} fueron el primer par identificado, con 549 registros compartidos.
+
+\subsubsection{R5: perfil de afinidad de una entidad}
+
+La afinidad de una organización $o$ con un tema $\tau$ es la proporción de registros que mencionan a la organización y que también contienen el tema:
+
+\begin{equation*}
+A(o,\tau) = \frac{\left|\{r \in R_t : o \in \mathrm{org}(r) \land \tau \in \mathrm{temas}(r)\}\right|}{g_t(o)} \times 100
+\end{equation*}
+
+Permite describir el perfil temático de un actor institucional. Para \code{united states}, por ejemplo, las consultas de la vista muestran una presencia de 7\,730 registros y una cobertura del tema \code{TAX\_FNCACT} próxima al 73,8\,\%.
+
 \subsection{Resumen de resultados}
 
 \begin{table}[H]
@@ -1043,17 +1092,23 @@ La frecuencia $g_t(o)$ es la cantidad de registros de la fecha $t$ que mencionan
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}X r@{}}
 \toprule
-KPI & Qué mide & Valor (6/11/2026) \\
+Indicador & Qué mide & Valor / ejemplo \\
 \midrule
-1. Volumen diario ($V_t$) & Registros GKG publicados en la fecha. & 80\,739 \\
-2. Variación diaria ($\Delta_t$) & Cambio porcentual del volumen frente a la fecha disponible anterior. & $-4{,}70$~\% \\
+1. Volumen diario ($V_t$) & Registros GKG publicados en la fecha. & 80\,739 (6/11/2026) \\
+2. Variación diaria ($\Delta_t$) & Cambio porcentual del volumen frente a la fecha disponible anterior. & $-4{,}70$\,\% (6/11/2026) \\
 3. Frecuencia de temas ($f_t$) & Registros que contienen cada tema; se publican los diez más frecuentes. & \code{TAX_FNCACT}: 67\,347 \\
-4. Diversidad temática ($D_t$) & Cantidad de códigos temáticos distintos. & 8\,626 \\
-5. Tono promedio ($\bar{T}_t$) & Media del tono de los registros con valor válido. & $-0{,}76$ \\
-6. Organizaciones más mencionadas ($g_t$) & Registros que mencionan cada organización; se publican las diez primeras. & \code{united states}: 7\,557 \\
+4. Diversidad temática ($D_t$) & Variedad de temas distintos en los registros. & 8\,626 (6/11/2026) \\
+5. Tono promedio ($\bar{T}_t$) & Media del tono de los registros con valor válido. & $-0{,}76$ (6/11/2026) \\
+6. Organizaciones más mencionadas ($g_t$) & Registros que mencionan cada organización; se publican las diez primeras. & \code{united states}: 7\,557 (6/11/2026) \\
+R1. Concentración del Top 10 & Proporción de menciones concentrada en las diez entidades principales. & 11{,}1\,\% \\
+R2. Cola larga de entidades & Porcentaje de entidades mencionadas una sola vez. & 69{,}6\,\% \\
+R3. Conectividad promedio & Relaciones temáticas y organizacionales por registro GKG. & 11{,}2 \\
+R4. Co-ocurrencia institucional & Número de registros que mencionan conjuntamente dos organizaciones. & \code{united states} + \code{associated press}: 549 \\
+R5. Afinidad temática & Proporción de menciones de una organización asociadas a un tema. & \code{TAX\_FNCACT}: 73,8\,\% \\
 \bottomrule
 \end{tabularx}
-\caption{Resumen de los KPIs con su valor más reciente.}
+\caption{Resumen de los seis indicadores de negocio y los cinco indicadores relacionales.}
+\label{tab:resumen-indicadores}
 \end{table}
 
 \subsection{Interpretación de los resultados}
@@ -1065,6 +1120,11 @@ KPI & Qué mide & Valor (6/11/2026) \\
     \item[KPI 4, diversidad temática.] Un valor mayor indica una cobertura más amplia. Se mantiene entre 7\,476 y 8\,850 códigos, de modo que la variedad temática es más estable que el volumen.
     \item[KPI 5, tono promedio.] Los valores negativos indican un predominio de tono negativo. El histórico se mantiene entre $-1{,}12$ y $-0{,}66$, con el mínimo el domingo 25 de octubre.
     \item[KPI 6, organizaciones más mencionadas.] Identifica a los actores institucionales con más presencia. El 6 de noviembre encabezan la lista \code{united states}, \code{white house} y \code{associated press}.
+    \item[R1, concentración del Top 10.] La atención se reparte en una cola amplia de entidades: el Top 10 concentra aproximadamente el 11,1\,\% de las menciones.
+    \item[R2, entidades de mención única.] Cerca del 69,6\,\% de las entidades aparece una sola vez, lo que confirma una alta fragmentación de actores.
+    \item[R3, conectividad promedio.] Cada registro GKG conserva aproximadamente 11,2 relaciones entre temas y organizaciones dentro del límite establecido.
+    \item[R4, co-ocurrencia institucional.] \code{united states} coincide con \code{associated press} en 549 registros del ejemplo analizado.
+    \item[R5, afinidad temática.] Para \code{united states}, el tema \code{TAX\_FNCACT} aparece en aproximadamente el 73,8\,\% de sus registros.
 \end{description}
 
 \begin{figure}[H]
@@ -1072,9 +1132,10 @@ KPI & Qué mide & Valor (6/11/2026) \\
 \begin{subfigure}{0.49\textwidth}
 \begin{tikzpicture}
 \begin{axis}[width=\textwidth, height=5.6cm, ybar, bar width=10pt,
+    ymin=0, ymax=90,
     symbolic x coords={24/10,25/10,26/10,27/10,06/11}, xtick=data,
     x tick label style={font=\scriptsize}, y tick label style={font=\scriptsize},
-    ylabel={Variación (\%)}, ylabel style={font=\small}, ymin=-50, ymax=90,
+    ylabel={Variación (\%)}, ylabel style={font=\small},
     ymajorgrids, grid style={gray!25}, enlarge x limits=0.15,
     nodes near coords, nodes near coords style={font=\tiny, /pgf/number format/.cd, fixed, precision=1}]
 \addplot[fill=airflowcolor!75, draw=airflowcolor] coordinates {(24/10,-40.74) (25/10,-14.44) (26/10,78.69) (27/10,17.86) (06/11,-4.70)};
@@ -1085,7 +1146,7 @@ KPI & Qué mide & Valor (6/11/2026) \\
 \hfill
 \begin{subfigure}{0.49\textwidth}
 \begin{tikzpicture}
-\begin{axis}[width=\textwidth, height=5.6cm, ybar, bar width=9pt, ymin=7000, ymax=9200,
+\begin{axis}[width=\textwidth, height=5.6cm, ymin=7000, ymax=9200,
     symbolic x coords={23/10,24/10,25/10,26/10,27/10,06/11}, xtick=data,
     x tick label style={font=\scriptsize}, y tick label style={font=\scriptsize},
     ylabel={Temas distintos}, ylabel style={font=\small},
@@ -1139,7 +1200,7 @@ La figura~\ref{fig:dash-panorama} presenta los registros analizados, el volumen 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figs/dash_indicadores.png}
-\caption{Diversidad temática y tono informativo, con la línea de tono neutro en cero.}
+\caption{Diversidad temática y tono promedio, con la línea de tono neutro en cero.}
 \label{fig:dash-indicadores}
 \end{figure}
 
@@ -1160,12 +1221,27 @@ La figura~\ref{fig:dash-panorama} presenta los registros analizados, el volumen 
 
 \subsection{Vista documental (MongoDB)}
 
-El explorador documental permite filtrar los registros de una fecha por un código de tema exacto o por una organización que contenga el texto buscado, paginar los resultados y abrir el documento JSON completo.
+El explorador documental permite filtrar los registros de una fecha por un código de tema exacto o por una organización que contenga el texto buscado, paginar los resultados y abrir el registro completo.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\textwidth]{figs/dash_documentos.png}
 \caption{Explorador documental: filtros, conteo de registros encontrados y tabla paginada.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.49\textwidth}
+\includegraphics[width=\textwidth]{figs/mongodb_resultados_documentales.png}
+\caption{Resultados encontrados y proporción respecto de la fecha.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.49\textwidth}
+\includegraphics[width=\textwidth]{figs/mongodb_distribucion_campos_por_registro.png}
+\caption{Distribución de temas y organizaciones por registro.}
+\end{subfigure}
+\caption{Resultados del explorador documental y estructura multivalor de los registros.}
+\label{fig:mongo-consultas}
 \end{figure}
 
 \subsection{Vista de relaciones (Neo4j)}
@@ -1178,7 +1254,29 @@ La vista de relaciones muestra los conteos de registros y de relaciones de la fe
 \caption{Explorador de relaciones: conteos del grafo y muestra de tres registros con sus temas y organizaciones.}
 \end{figure}
 
-Las capturas corresponden a la fecha de análisis 27 de octubre de 2026. Con el histórico completo, el selector de fecha ofrece las seis fechas cargadas.
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.49\textwidth}
+\includegraphics[width=\textwidth]{figs/neo4j_perfil_entidad.png}
+\caption{Perfil de una organización determinada.}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.49\textwidth}
+\includegraphics[width=\textwidth]{figs/neo4j_actores_aparecen_juntos.png}
+\caption{Organizaciones que aparecen juntas en los registros.}
+\end{subfigure}
+\caption{Consultas de perfil y coocurrencia realizadas sobre el grafo de Neo4j.}
+\label{fig:neo4j-consultas}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{figs/neo4j_concentracion_agenda.png}
+\caption{Concentración de entidades en temas y organizaciones de la agenda analizada.}
+\label{fig:neo4j-concentracion}
+\end{figure}
+
+Las capturas muestran el estado vigente del tablero con las seis fechas procesadas del histórico disponible. El selector permite consultar 23–27 de octubre y 6 de noviembre de 2026.
 
 % -------------------------------------------------------------
 \section{Conclusiones}\label{sec:conclusiones}
@@ -1189,22 +1287,22 @@ Las capturas corresponden a la fecha de análisis 27 de octubre de 2026. Con el 
 \begin{itemize}
     \item Se implementó una arquitectura multimodelo con MongoDB, Cassandra y Neo4j, y cada tipo de dato se justificó por su patrón de acceso.
     \item El DAG de Airflow automatiza las seis etapas del proceso y se verificó con una ejecución programada y con una repetición idempotente.
-    \item Se calcularon seis KPIs, por encima del mínimo de cinco, y se reconcilian entre las tres bases.
+    \item Se calcularon seis indicadores de negocio y cinco indicadores relacionales complementarios, y sus resultados se reconciliaron entre las tres bases.
     \item Las operaciones de creación, consulta, actualización y eliminación se demostraron en las tres bases, incluida la creación y eliminación de una relación en Neo4j.
     \item El tablero consulta las tres bases y se mantiene operativo ante la falla de una de ellas.
 \end{itemize}
 
 \subsection{Principales resultados}
 
-El histórico procesado contiene 403\,941 registros en seis fechas, 4\,502\,015 relaciones en el grafo (3\,354\,593 hacia temas y 1\,147\,422 hacia organizaciones) y seis indicadores generados de forma automática. El conjunto cumple el mínimo de 50\,000 registros con un margen de ocho veces. En el entorno de referencia, las 34 pruebas automatizadas se ejecutan con resultado satisfactorio.
+El histórico procesado contiene 403\,941 registros en seis fechas, 4\,502\,015 relaciones en el grafo (3\,354\,593 hacia temas y 1\,147\,422 hacia organizaciones), seis indicadores de negocio y cinco indicadores relacionales. El conjunto cumple el mínimo de 50\,000 registros con un margen de ocho veces. En el entorno de referencia, las 34 pruebas automatizadas se ejecutan con resultado satisfactorio.
 
 \subsection{Dificultades y soluciones}
 
 \begin{itemize}
     \item Publicación consistente en Cassandra: al no haber transacciones entre particiones, una falla podía dejar agregados parciales visibles. Se resolvió con versiones inmutables identificadas por UUID y un puntero que se actualiza al final, y se comprobó con una falla inducida.
     \item Reejecución sin duplicados: se resolvió con identificadores deterministas, \code{upsert} con \code{$setOnInsert} en MongoDB y \code{MERGE} en Neo4j.
-    \item Datos voluminosos entre tareas: se evitó enviar archivos por XCom publicándolos como artefactos y transmitiendo solo sus rutas.
-    \item Portabilidad de rutas: las URI de artefactos con letra de unidad en Windows se interpretaban como rutas relativas. Se corrigió con la conversión estándar de URI a ruta del sistema y se agregó una prueba.
+    \item Datos voluminosos entre tareas: se evitaron las transferencias masivas durante el flujo y se dejaron disponibles como artefactos recuperables por las etapas posteriores.
+    \item Portabilidad del despliegue: se normalizó la resolución de rutas entre sistemas operativos para mantener el funcionamiento del almacenamiento compartido.
 \end{itemize}
 
 \subsection{Limitaciones y trabajo futuro}
@@ -1220,42 +1318,8 @@ El histórico procesado contiene 403\,941 registros en seis fechas, 4\,502\,015 
 \end{itemize}
 
 % -------------------------------------------------------------
-\appendix
-\section{Estructura del repositorio y ejecución}
-% -------------------------------------------------------------
-
-\begin{table}[H]
-\centering
-\small
-\begin{tabular}{@{}ll@{}}
-\toprule
-Ruta & Contenido \\
-\midrule
-\path{dags/} & DAG \code{global_news_ingestion} \\
-\path{src/ingestion/, validation/, transformation/} & Descarga, validación, transformación y cargas \\
-\path{src/pipeline/} & Lógica de las tareas y almacenamiento de artefactos \\
-\path{scripts/} & Creación de bases, demostración de CRUD, verificaciones \\
-\path{scripts/mongodb/, cassandra/, neo4j/} & Esquemas de cada base \\
-\path{dashboard/} & Tablero Streamlit \\
-\code{compose.yaml, compose.airflow.yaml} & Despliegue con Docker Compose \\
-\path{docs/} & Guías y evidencias de verificación \\
-\path{tests/} & Pruebas automatizadas \\
-\bottomrule
-\end{tabular}
-\caption{Estructura principal del repositorio.}
-\end{table}
-
-\begin{lstlisting}[language=bash]
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-python -m pip install -r requirements-lock.txt
-docker compose --env-file .env up -d --wait --wait-timeout 600
-python -m scripts.bootstrap_databases
-python -m scripts.run_pipeline --date 20261027       # equivale al DAG, en terminal
-python -m scripts.crud_demo                          # demostracion de CRUD
-streamlit run dashboard/app.py
-\end{lstlisting}
-
 \section*{Referencias}
+% -------------------------------------------------------------
 
 \begin{itemize}[leftmargin=1.2cm, itemsep=4pt]
     \item Apache Software Foundation. (2026). \textit{Apache Airflow 2.11.1 documentation}. \url{https://airflow.apache.org/docs/apache-airflow/2.11.1/}
@@ -1264,7 +1328,6 @@ streamlit run dashboard/app.py
     \item MongoDB, Inc. (2026). \textit{MongoDB manual}. \url{https://www.mongodb.com/docs/manual/}
     \item Neo4j, Inc. (2026). \textit{Neo4j Cypher manual}. \url{https://neo4j.com/docs/cypher-manual/current/}
     \item Streamlit Inc. (2026). \textit{Streamlit documentation}. \url{https://docs.streamlit.io/}
-    \item Tamayo, M. K., et al. (2026). \textit{Global News Intelligence} [Repositorio de código fuente]. GitHub. \url{https://github.com/KarolayTamayoH/global-news-intelligence}
 \end{itemize}
 
 \end{document}

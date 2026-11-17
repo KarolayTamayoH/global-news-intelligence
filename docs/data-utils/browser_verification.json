@@ -1,0 +1,20 @@
+{
+  "status": "verified",
+  "url": "http://localhost:8501",
+  "screenshots": [
+    "01_dashboard_panorama.jpeg",
+    "02_cassandra_volumen_variacion.jpeg",
+    "03_cassandra_diversidad_tono.jpeg",
+    "04_cassandra_temas_mas_mencionados.jpeg",
+    "05_cassandra_organizaciones_mas_mencionadas.jpeg",
+    "06_mongodb_explorador_documental.jpeg",
+    "07_mongodb_resultados_documentales.jpeg",
+    "08_mongodb_distribucion_campos_por_registro.jpeg",
+    "09_neo4j_relaciones_resumen.jpeg",
+    "10_neo4j_perfil_entidad.jpeg",
+    "11_neo4j_actores_aparecen_juntos.jpeg",
+    "12_neo4j_explorador_grafo.jpeg",
+    "13_neo4j_concentracion_agenda.jpeg"
+  ],
+  "page_errors": []
+}
