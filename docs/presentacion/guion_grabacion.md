@@ -8,7 +8,7 @@ Video final estimado: **20:36** (objetivo 20 a 25 minutos). Cada integrante grab
 |---|---|---|---|---|---|---|
 | 1 | Abel | Diagrama de arquitectura y orquestación con Airflow | 1 a 6 | 4:20 (máximo 4:35) | 0:00 - 4:20 | `por_integrante/Video_1_Abel_diapositivas_1-6.pptx` |
 | 2 | Caroline | MongoDB: modelado y script de ingesta | 7 a 9 | 4:02 (máximo 4:17) | 4:20 - 8:22 | `por_integrante/Video_2_Caroline_diapositivas_7-9.pptx` |
-| 3 | Mayra | Cassandra: modelado y script de ingesta | 10 a 13 | 4:06 (máximo 4:21) | 8:22 - 12:28 | `por_integrante/Video_3_Mayra_diapositivas_10-13.pptx` |
+| 3 | Mahir | Cassandra: modelado y script de ingesta | 10 a 13 | 4:06 (máximo 4:21) | 8:22 - 12:28 | `por_integrante/Video_3_Mayra_diapositivas_10-13.pptx` |
 | 4 | Fabricio | Neo4j: modelado y script de ingesta | 14 a 17 | 4:03 (máximo 4:18) | 12:28 - 16:31 | `por_integrante/Video_4_Fabricio_diapositivas_14-17.pptx` |
 | 5 | Alessandro | KPIs y dashboard | 18 a 21 | 4:05 (máximo 4:20) | 16:31 - 20:36 | `por_integrante/Video_5_Alessandro_diapositivas_18-21.pptx` |
 
@@ -18,7 +18,7 @@ Diferencia entre el que más y el que menos habla: 0:18. Cada uno queda entre 4:
 
 - Abel: arquitectura y Airflow (diapositivas 4 a 6), más la apertura del video (portada, problema y pregunta, 1 a 3).
 - Caroline: MongoDB (8 y 9), más los datos y la validación (7), que son la entrada de su script de ingesta.
-- Mayra: Cassandra (10 y 11), más los resultados que se sirven desde Cassandra: volumen y tono (12 y 13).
+- Mahir: Cassandra (10 y 11), más los resultados que se sirven desde Cassandra: volumen y tono (12 y 13).
 - Fabricio: Neo4j (14 y 15), más el resultado del grafo (16) y la conciliación de las tres bases (17), que cierra la parte de bases de datos.
 - Alessandro: KPIs y dashboard (18 y 19), más la discusión y las conclusiones (20 y 21), porque el dashboard integra todo lo anterior.
 
@@ -29,7 +29,7 @@ Cada uno defiende además la justificación de su propia base en la primera diap
 1. Cada uno abre solo su archivo de `por_integrante/` en modo presentación. Las notas del orador con el texto están en cada diapositiva y no se ven en la proyección.
 2. Grabar la pantalla de la presentación y el micrófono, 1920 x 1080 o 1280 x 720, sin ventanas ni notificaciones encima.
 3. Empezar cada video con una pausa de 2 segundos y terminar con otra pausa de 2 segundos, para poder cortar y unir sin que se pisen las voces.
-4. Las demostraciones en pantalla (Caroline, Mayra, Fabricio y Alessandro) necesitan el dashboard abierto con las seis fechas cargadas. Se levanta con `docker compose --env-file .env up -d --wait mongodb cassandra neo4j` y luego `streamlit run dashboard/app.py`. En la diapositiva con demostración, grabar la ventana del navegador durante el tiempo fijado y volver a la presentación.
+4. Las demostraciones en pantalla (Caroline, Mahir, Fabricio y Alessandro) necesitan el dashboard abierto con las seis fechas cargadas. Se levanta con `docker compose --env-file .env up -d --wait mongodb cassandra neo4j` y luego `streamlit run dashboard/app.py`. En la diapositiva con demostración, grabar la ventana del navegador durante el tiempo fijado y volver a la presentación.
 5. Cada video termina con la frase de traspaso que figura en el guion, salvo el último.
 6. Si te pasas más de 15 segundos del tiempo asignado, recorta las últimas frases de tu intervención más larga, sin quitar la frase de traspaso.
 
@@ -37,7 +37,7 @@ Cada uno defiende además la justificación de su propia base en la primera diap
 
 1. Video 1: Abel (diapositivas 1 a 6), 4:20.
 2. Video 2: Caroline (diapositivas 7 a 9), 4:02.
-3. Video 3: Mayra (diapositivas 10 a 13), 4:06.
+3. Video 3: Mahir (diapositivas 10 a 13), 4:06.
 4. Video 4: Fabricio (diapositivas 14 a 17), 4:03.
 5. Video 5: Alessandro (diapositivas 18 a 21), 4:05.
 
@@ -51,7 +51,7 @@ Tiempo total: 4:20. Rol: Diagrama de arquitectura y orquestación con Airflow. A
 
 ⏱ en tu video 0:00 - 0:24 (24 s) · en el video final 0:00 - 0:24
 
-> Hola, somos el equipo de Global News Intelligence. Presentaremos un pipeline que lleva noticias de GDELT a tres bases de datos y a un dashboard. Somos cinco. Yo soy Abel, a cargo de la arquitectura y de Airflow. Caroline presenta MongoDB, Mayra presenta Cassandra, Fabricio presenta Neo4j y Alessandro presenta los KPIs y el dashboard.
+> Hola, somos el equipo de Global News Intelligence. Presentaremos un pipeline que lleva noticias de GDELT a tres bases de datos y a un dashboard. Somos cinco. Yo soy Abel, a cargo de la arquitectura y de Airflow. Caroline presenta MongoDB, Mahir presenta Cassandra, Fabricio presenta Neo4j y Alessandro presenta los KPIs y el dashboard.
 
 ### Diapositiva 2: Motivación
 
@@ -107,9 +107,9 @@ Tiempo total: 4:02. Rol: MongoDB: modelado y script de ingesta. Archivo: `por_in
 
 ⏱ en tu video 3:07 - 4:02 (55 s) · en el video final 7:27 - 8:22
 
-> DEMOSTRACIÓN EN PANTALLA, pestaña Documentos del dashboard. Escribir una organización, por ejemplo reuters, y pulsar Consultar documentos. Decir: aquí MongoDB devuelve los registros tal como llegaron. Abrir un registro en Documento completo y mostrar el JSON. Cerrar diciendo: le paso la palabra a Mayra, que presenta Cassandra.
+> DEMOSTRACIÓN EN PANTALLA, pestaña Documentos del dashboard. Escribir una organización, por ejemplo reuters, y pulsar Consultar documentos. Decir: aquí MongoDB devuelve los registros tal como llegaron. Abrir un registro en Documento completo y mostrar el JSON. Cerrar diciendo: le paso la palabra a Mahir, que presenta Cassandra.
 
-## Video 3: Mayra, diapositivas 10 a 13
+## Video 3: Mahir, diapositivas 10 a 13
 
 Tiempo total: 4:06. Rol: Cassandra: modelado y script de ingesta. Archivo: `por_integrante/Video_3_Mayra_diapositivas_10-13.pptx`. Demostración en pantalla: Pestaña Indicadores.
 
@@ -117,7 +117,7 @@ Tiempo total: 4:06. Rol: Cassandra: modelado y script de ingesta. Archivo: `por_
 
 ⏱ en tu video 0:00 - 0:54 (54 s) · en el video final 8:22 - 9:16
 
-> Gracias, Caroline. Soy Mayra y les presento Cassandra. Por qué Cassandra: los KPIs se leen siempre por fecha y se escriben una vez al día, y Cassandra está pensada para eso, con lecturas rápidas por partición. Por eso modelamos una tabla por consulta. daily_news_metrics guarda una fila por fecha con volumen, variación, diversidad y tono. Las tablas de temas y de organizaciones guardan los diez primeros de cada fecha. Para no mostrar nunca datos a medias, cada publicación escribe una versión nueva identificada con un UUID de generación: primero se escribe la versión, luego se verifican los conteos y solo al final se activa la generación. Usamos consistencia LOCAL_QUORUM, en un nodo con factor de replicación uno, suficiente para el entorno local del curso.
+> Gracias, Caroline. Soy Mahir y les presento Cassandra. Por qué Cassandra: los KPIs se leen siempre por fecha y se escriben una vez al día, y Cassandra está pensada para eso, con lecturas rápidas por partición. Por eso modelamos una tabla por consulta. daily_news_metrics guarda una fila por fecha con volumen, variación, diversidad y tono. Las tablas de temas y de organizaciones guardan los diez primeros de cada fecha. Para no mostrar nunca datos a medias, cada publicación escribe una versión nueva identificada con un UUID de generación: primero se escribe la versión, luego se verifican los conteos y solo al final se activa la generación. Usamos consistencia LOCAL_QUORUM, en un nodo con factor de replicación uno, suficiente para el entorno local del curso.
 
 ### Diapositiva 11: Cassandra: ingesta y recuperación
 
@@ -149,7 +149,7 @@ Tiempo total: 4:03. Rol: Neo4j: modelado y script de ingesta. Archivo: `por_inte
 
 ⏱ en tu video 0:00 - 1:03 (63 s) · en el video final 12:28 - 13:31
 
-> Gracias, Mayra. Soy Fabricio y les presento Neo4j. Por qué Neo4j: la pregunta de qué temas y organizaciones aparecen juntos es una pregunta de relaciones, y en un grafo las relaciones son datos de primera clase. El modelo tiene tres tipos de nodos: GKGRecord, para cada registro; Theme, para cada tema; y Organization, para cada organización. Y dos relaciones: HAS_THEME, del registro a sus temas, y MENTIONS_ORG, del registro a las organizaciones que menciona. Para saber qué temas aparecen junto a una organización basta recorrer dos saltos desde el nodo, algo que en un modelo relacional exigiría varios joins sobre tablas grandes. Creamos restricciones de unicidad, y para controlar el tamaño enlazamos las diez primeras entidades de cada lista. Entre las seis fechas suman unos tres coma cuatro millones de aristas de temas y uno coma uno de organizaciones, sobre cuatrocientos tres mil nodos de registro.
+> Gracias, Mahir. Soy Fabricio y les presento Neo4j. Por qué Neo4j: la pregunta de qué temas y organizaciones aparecen juntos es una pregunta de relaciones, y en un grafo las relaciones son datos de primera clase. El modelo tiene tres tipos de nodos: GKGRecord, para cada registro; Theme, para cada tema; y Organization, para cada organización. Y dos relaciones: HAS_THEME, del registro a sus temas, y MENTIONS_ORG, del registro a las organizaciones que menciona. Para saber qué temas aparecen junto a una organización basta recorrer dos saltos desde el nodo, algo que en un modelo relacional exigiría varios joins sobre tablas grandes. Creamos restricciones de unicidad, y para controlar el tamaño enlazamos las diez primeras entidades de cada lista. Entre las seis fechas suman unos tres coma cuatro millones de aristas de temas y uno coma uno de organizaciones, sobre cuatrocientos tres mil nodos de registro.
 
 ### Diapositiva 15: Neo4j: ingesta y CRUD
 
