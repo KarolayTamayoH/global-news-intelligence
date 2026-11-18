@@ -1,5 +1,5 @@
 .env
-.venv/
+.venv*/
 __pycache__/
 *.pyc
 .DS_Store
@@ -15,7 +15,6 @@ instrucciones_proyecto.md
 informe.tex
 informe.pdf
 data/runs/
-.airflow/
 
 
 # Archivos auxiliares generados por LaTeX/IDE.

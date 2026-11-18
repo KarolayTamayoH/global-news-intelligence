@@ -66,10 +66,9 @@ def cassandra_crud():
 
 
 def neo4j_crud():
-    if not NEO4J_PASSWORD:
-        raise ValueError('Configura NEO4J_PASSWORD en el entorno')
     identifier = f'crud-{uuid4().hex}'
-    with GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD)) as driver:
+    auth = (NEO4J_USER, NEO4J_PASSWORD) if NEO4J_PASSWORD else None
+    with GraphDatabase.driver(NEO4J_URI, auth=auth) as driver:
         with driver.session(database=NEO4J_DATABASE) as session:
             try:
                 session.run('''CREATE (a:CrudDemo {run_id:$id, kind:'record', value:1}),
@@ -111,8 +110,6 @@ def main():
     parser.add_argument('--database', choices=['all', 'mongodb', 'cassandra', 'neo4j'], default='all')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
-    if args.database in ('all', 'neo4j') and not NEO4J_PASSWORD:
-        parser.error('Carga NEO4J_PASSWORD antes de ejecutar la demostracion')
     actions = {'mongodb': mongodb_crud, 'cassandra': cassandra_crud, 'neo4j': neo4j_crud}
     results = {name: action() for name, action in actions.items() if args.database in ('all', name)}
     text = json.dumps({'status': 'verified', 'databases': results}, ensure_ascii=False, indent=2) + '\n'

@@ -26,6 +26,7 @@
 \usetikzlibrary{babel,arrows.meta,positioning,fit,backgrounds,calc}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.16}
+\usepackage{fancyhdr}
 
 \definecolor{primarycolor}{gray}{0}
 \definecolor{mongocolor}{gray}{0}
@@ -67,6 +68,13 @@
     flow/.style={-{Stealth[length=2.6mm]}, thick, color=neutralcolor},
     zone/.style={draw=neutralcolor, dashed, rounded corners=5pt, inner sep=9pt}
 }
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[L]{\scriptsize Repositorio: \url{https://github.com/KarolayTamayoH/global-news-intelligence.git}}
+\fancyfoot[R]{\scriptsize \thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
 
 \begin{document}
 
@@ -1316,6 +1324,9 @@ El histórico procesado contiene 403\,941 registros en seis fechas, 4\,502\,015 
     \item Aún no se han hecho pruebas formales de rendimiento ni se ha reproducido la instalación en una segunda máquina.
     \item Como extensión, entidades como persona, fuente y ubicación podrían promoverse a nodos si aportan preguntas de negocio, con el costo de ampliar la carga, el esquema y el tablero.
 \end{itemize}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+\footnotetext[1]{Repositorio del proyecto: \url{https://github.com/tu_usuario/global-news-intelligence}}
 
 % -------------------------------------------------------------
 \section*{Referencias}

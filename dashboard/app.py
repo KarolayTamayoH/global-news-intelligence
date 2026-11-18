@@ -227,9 +227,8 @@ def get_mongo_client():
 
 @st.cache_resource
 def get_neo4j_driver():
-    if not NEO4J_PASSWORD:
-        raise ValueError('Falta configurar NEO4J_PASSWORD')
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD),
+    auth = (NEO4J_USER, NEO4J_PASSWORD) if NEO4J_PASSWORD else None
+    driver = GraphDatabase.driver(NEO4J_URI, auth=auth,
                                   connection_timeout=5)
     try:
         driver.verify_connectivity()

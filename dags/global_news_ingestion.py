@@ -10,7 +10,7 @@ from airflow.decorators import dag, task
     schedule='0 6 * * *',
     start_date=datetime(2026, 10, 1, tzinfo=timezone.utc),
     catchup=False,
-    is_paused_upon_creation=True,
+    is_paused_upon_creation=False,
     max_active_runs=1,
     dagrun_timeout=timedelta(hours=4),
     default_args={'retries': 2, 'retry_delay': timedelta(minutes=5)},

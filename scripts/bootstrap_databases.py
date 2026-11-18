@@ -61,9 +61,8 @@ def bootstrap_cassandra():
 
 
 def bootstrap_neo4j():
-    if not NEO4J_PASSWORD:
-        raise ValueError('Configura NEO4J_PASSWORD en el entorno del proceso')
-    with GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD)) as driver:
+    auth = (NEO4J_USER, NEO4J_PASSWORD) if NEO4J_PASSWORD else None
+    with GraphDatabase.driver(NEO4J_URI, auth=auth) as driver:
         driver.verify_connectivity()
         with driver.session(database=NEO4J_DATABASE) as session:
             for query in ddl_statements(ROOT / 'scripts/neo4j/schema.cypher'):
@@ -76,8 +75,6 @@ def main():
     parser.add_argument('--database', choices=['all', 'mongodb', 'cassandra', 'neo4j'], default='all')
     args = parser.parse_args()
     actions = {'mongodb': bootstrap_mongodb, 'cassandra': bootstrap_cassandra, 'neo4j': bootstrap_neo4j}
-    if args.database in ('all', 'neo4j') and not NEO4J_PASSWORD:
-        parser.error('Carga NEO4J_PASSWORD en el entorno antes de inicializar Neo4j')
     for name, action in actions.items():
         if args.database in ('all', name):
             action()

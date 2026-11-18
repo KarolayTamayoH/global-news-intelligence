@@ -2,7 +2,7 @@
 
 Actualización: 8 de noviembre de 2026. Entrega del curso: 17 de noviembre de 2026.
 
-La entrega utiliza Airflow y las tres bases en Docker, archivos compartidos en `data/` y Streamlit en el Mac. La configuración vigente está en `deploy/local.json`.
+La entrega usa un único `compose.yaml` para Airflow, las tres bases y Streamlit, con archivos compartidos en `data/`. La configuración vigente está en `deploy/local.json`.
 
 ## Avance comprobado
 

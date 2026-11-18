@@ -17,7 +17,7 @@ from src.config import (
     NEO4J_PASSWORD, NEO4J_DATABASE,
 )
 
-BATCH_SIZE = 100
+BATCH_SIZE = 1000
 
 
 def save_batch(tx, records):
@@ -45,11 +45,6 @@ def save_batch(tx, records):
 
 
 def load_neo4j(target_date, limit=None, force=False):
-    if not NEO4J_PASSWORD:
-        raise ValueError(
-            "Configura la variable de entorno NEO4J_PASSWORD"
-        )
-
     if limit is not None and limit <= 0:
         raise ValueError("--limit debe ser mayor que cero")
 
@@ -59,7 +54,7 @@ def load_neo4j(target_date, limit=None, force=False):
     mongo_client = MongoClient(MONGO_URI)
     driver = GraphDatabase.driver(
         NEO4J_URI,
-        auth=(NEO4J_USER, NEO4J_PASSWORD)
+        auth=(NEO4J_USER, NEO4J_PASSWORD) if NEO4J_PASSWORD else None
     )
 
     try:

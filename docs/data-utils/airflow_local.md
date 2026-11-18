@@ -25,7 +25,7 @@ Las ocho tareas usan TaskFlow. Las etapas de negocio están en `src/pipeline/tas
 - Se procesa el día anterior al **fin del intervalo** en UTC. Un intervalo que termina el 28 de octubre a las 06:00 procesa `20261027`.
 - La configuración manual `{"target_date":"20261027"}` tiene prioridad.
 - Hay dos reintentos separados por cinco minutos, una ejecución activa y `catchup=False`.
-- El DAG se crea pausado. Se activó y se verificó una ejecución real del scheduler: `scheduled__2026-11-06T06:00:00+00:00`, con ocho tareas exitosas y 80.739 registros del 6 de noviembre reconciliados. Evidencia: [ejecución programada](airflow_scheduled_verification.json).
+- El DAG se crea activo. Hay una ejecución real del scheduler verificada: `scheduled__2026-11-06T06:00:00+00:00`, con ocho tareas exitosas y 80.739 registros del 6 de noviembre reconciliados. Evidencia: [ejecución programada](airflow_scheduled_verification.json).
 
 El Mac y Docker deben permanecer activos para ejecutar el cron. Las descargas nuevas necesitan Internet y dependen de la disponibilidad de GDELT.
 
@@ -44,37 +44,28 @@ Neo4j repite MERGE mediante `force=True`, incluso si hay historial previo comple
 Desde la raíz, conservar las credenciales existentes en `.env`:
 
 ```bash
-python -m scripts.prepare_airflow
-
-docker compose --env-file .env --env-file .airflow/local.env \
-  -f compose.yaml -f compose.airflow.yaml build airflow
-
-docker compose --env-file .env --env-file .airflow/local.env \
-  -f compose.yaml -f compose.airflow.yaml up -d --wait --wait-timeout 600 airflow
+docker compose up -d --build --wait --wait-timeout 600
 ```
 
-La clave de PostgreSQL se genera en `.airflow/local.env`, ignorado por Git. Airflow usa `standalone` para la demostración local. Su interfaz está en http://localhost:8080; el usuario es `admin` y la contraseña generada se conserva en `/opt/airflow/standalone_admin_password.txt` dentro del contenedor. No incluirla en capturas o documentación.
+Este comando levanta las bases, Airflow y el dashboard desde el único `compose.yaml`. Airflow ejecuta `python -m scripts.bootstrap_databases` antes de iniciar el scheduler; el script se puede repetir y no borra registros. El DAG queda activo por defecto, con una extracción diaria a las 06:00 UTC (01:00 Lima) y `catchup=False`. Solo el usuario web de Airflow requiere credenciales configuradas: `AIRFLOW_ADMIN_USERNAME` y `AIRFLOW_ADMIN_PASSWORD`. La comunicación interna con PostgreSQL y Neo4j está sin autenticación en este stack local. La interfaz está en http://localhost:8080 y el dashboard en http://localhost:8501.
 
 ## Importación y prueba completa
 
 Comprobar las ocho tareas y dependencias:
 
 ```bash
-docker compose --env-file .env --env-file .airflow/local.env \
-  -f compose.yaml -f compose.airflow.yaml exec -T airflow \
+docker compose exec -T airflow \
   python -m scripts.check_airflow_dag
 ```
 
 Ejecutar una partición y repetirla con otra fecha de ejecución:
 
 ```bash
-docker compose --env-file .env --env-file .airflow/local.env \
-  -f compose.yaml -f compose.airflow.yaml exec -T airflow \
+docker compose exec -T airflow \
   python -m scripts.check_airflow_dag --run --date 20261027 \
   --execution-date 2026-10-28T06:00:00+00:00 --output docs/data-utils/airflow_verification_first.json
 
-docker compose --env-file .env --env-file .airflow/local.env \
-  -f compose.yaml -f compose.airflow.yaml exec -T airflow \
+docker compose exec -T airflow \
   python -m scripts.check_airflow_dag --run --date 20261027 \
   --execution-date 2026-10-29T06:00:00+00:00 --output docs/data-utils/airflow_verification_repeat.json
 ```
@@ -105,8 +96,7 @@ una ejecución de tipo `scheduled`, con las ocho tareas exitosas, historial
 curso o falló, termina con error sin generar una evidencia nueva.
 
 ```bash
-docker compose --env-file .env --env-file .airflow/local.env \
-  -f compose.yaml -f compose.airflow.yaml exec -T airflow \
+docker compose exec -T airflow \
   python -m scripts.verify_scheduled_run \
   --output docs/data-utils/airflow_scheduled_verification.json
 ```

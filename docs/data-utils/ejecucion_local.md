@@ -1,6 +1,6 @@
 # Arranque local reproducible
 
-Ejecutar desde la raíz del repositorio. El entorno comprobado usa Python 3.14.6, Docker Desktop y Compose v2.37.1. Las dependencias directas están fijadas en `requirements.txt`; `requirements-lock.txt` registra también las dependencias transitivas del entorno local. La instalación en otra plataforma sigue requiriendo verificación. La entrega es totalmente local. Airflow 2.11.1 se ejecuta en Docker con Python 3.12; el venv del Mac contiene procesamiento, dashboard y pruebas.
+Ejecutar desde la raíz del repositorio. La entrega local usa Docker Desktop y Compose; un solo `compose.yaml` administra MongoDB, Cassandra, Neo4j, Airflow y Streamlit. El entorno Python local es opcional y se usa para scripts y pruebas, no para servir el dashboard.
 
 ## 1. Entorno Python
 
@@ -9,14 +9,14 @@ python3 --version
 # Usar Python 3.14.6 para reproducir el entorno comprobado.
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements-lock.txt
+python -m pip install -r requirements.txt
 ```
 
 Si ya existe `.venv`, activarlo sin recrearlo. Para trabajar con esta estructura, usar `python -m src...` y `python -m scripts...`, desde la raíz, en lugar de invocar archivos sueltos.
 
 ## 2. Configuración
 
-Copiar `.env.example` a `.env` solamente si aún no existe; conservar cualquier archivo y contraseña existentes. Cambiar `NEO4J_PASSWORD` por una contraseña local de al menos ocho caracteres. El usuario inicial del contenedor Neo4j es `neo4j`.
+Copiar `.env.example` a `.env` solamente si aún no existe; conservar cualquier configuración local. Neo4j no requiere contraseña en este stack local. `AIRFLOW_ADMIN_PASSWORD` configura únicamente el acceso a la interfaz de Airflow.
 
 ```bash
 cp -n .env.example .env
@@ -26,23 +26,21 @@ source .env
 set +a
 ```
 
-`.env` debe ser compatible con el shell: entrecomillar contraseñas que contengan espacios o caracteres especiales. Los scripts Python leen las variables exportadas; no cargan automáticamente `.env`. Compose sí lo lee para interpolar su configuración. No mostrar `docker compose config` completo al compartir logs: incluye la autenticación de Neo4j. Usar `docker compose config --quiet` para validar sin imprimirla.
+Compose y `src/config.py` cargan `.env` automáticamente. Las variables presentes en el shell prevalecen. No mostrar `docker compose config` completo al compartir logs: incluye la autenticación de Neo4j. Usar `docker compose config --quiet` para validar sin imprimirla.
 
 `src/config.py` centraliza URI, puertos, nombres de bases y rutas. `GNI_DATA_DIR` admite rutas absolutas o relativas a la raíz del proyecto. Para cambiar un puerto, ajustar tanto el puerto publicado por Compose como el URI del cliente correspondiente. Las variables de tu shell prevalecen sobre `.env` al invocar Compose.
 
 ## 3. Bases de datos
 
 ```bash
-docker compose config --quiet
-docker compose up -d --wait --wait-timeout 600
-python -m scripts.bootstrap_databases
+docker compose up -d --build --wait --wait-timeout 600
 ```
 
-Compose crea servicios llamados `mongodb`, `cassandra` y `neo4j` bajo el proyecto `global-news-intelligence`, con volúmenes nuevos propios. No adopta automáticamente contenedores ni datos anteriores. Si otro servicio ocupa 27018, 9043, 7475 o 7688, detenerlo de forma consciente o cambiar los puertos de esta configuración. No ejecutar ambos stacks sobre los mismos puertos.
+Compose crea `mongodb`, `cassandra`, `neo4j`, `airflow-db`, `airflow` y `dashboard` bajo el proyecto `global-news-intelligence`, con sus volúmenes. No adopta automáticamente contenedores ni datos anteriores. Si otro servicio ocupa 27018, 9043, 7475, 7688, 8080 o 8501, cambiar los puertos en `.env`.
 
-Las imágenes predeterminadas son MongoDB 8.0, Cassandra 5.0 y Neo4j 5.26 Community. Son tags de serie, no digests inmutables; `MONGO_IMAGE`, `CASSANDRA_IMAGE` y `NEO4J_IMAGE` permiten fijar una compilación exacta. Los puertos se publican exclusivamente en 127.0.0.1 para la demostración local. MongoDB y Cassandra se utilizan sin autenticación adicional dentro de la red local de Docker. Cassandra y Neo4j pueden tardar varios minutos en iniciar; `--wait` comprueba los healthchecks.
+Las versiones base de MongoDB 8.0, Cassandra 5.0 y Neo4j 5.26 Community se declaran en `docker/mongo/Dockerfile`, `docker/cassandra/Dockerfile` y `docker/neo4j/Dockerfile`. Los puertos se publican exclusivamente en 127.0.0.1 para la demostración local. MongoDB y Cassandra se utilizan sin autenticación adicional dentro de la red local de Docker. Cassandra y Neo4j pueden tardar varios minutos en iniciar; `--wait` comprueba los healthchecks.
 
-El bootstrap admite `--database mongodb`, `--database cassandra` o `--database neo4j`. Es repetible: aplica el validador MongoDB y crea índices, tablas y restricciones que falten. No elimina registros. En colecciones existentes, `collMod` aplica el contrato a escrituras posteriores; no certifica que los registros anteriores lo cumplan.
+Airflow ejecuta automáticamente `python -m scripts.bootstrap_databases` antes de iniciar el scheduler, tanto con volúmenes nuevos como en reinicios. El bootstrap admite `--database mongodb`, `--database cassandra` o `--database neo4j`. Es repetible: aplica el validador MongoDB y crea índices, tablas y restricciones que falten. No elimina registros. En colecciones existentes, `collMod` aplica el contrato a escrituras posteriores; no certifica que los registros anteriores lo cumplan.
 
 Comprobar estado y logs:
 
@@ -90,23 +88,15 @@ python -m src.ingestion.run_incremental --days 5
 ## 5. Dashboard y pruebas
 
 ```bash
-python -m streamlit run dashboard/app.py
+docker compose up -d dashboard
 python -m unittest discover -s tests -v
 ```
 
-Streamlit se abre en http://localhost:8501 y consulta Cassandra, MongoDB y Neo4j en tres vistas. El selector de fecha filtra rankings, documentos y relaciones; el explorador documental añade filtros y paginación y el grafo muestra una muestra limitada de conexiones. Neo4j Browser está en http://localhost:7475. Los tests usan servicios simulados: no reemplazan una comprobación de integración con contenedores.
+Streamlit se abre en http://localhost:8501 como servicio del mismo Compose y consulta Cassandra, MongoDB y Neo4j en tres vistas. El selector de fecha filtra rankings, documentos y relaciones; el explorador documental añade filtros y paginación y el grafo muestra una muestra limitada de conexiones. Neo4j Browser está en http://localhost:7475. Los tests usan servicios simulados: no reemplazan una comprobación de integración con contenedores.
 
 ## 6. Airflow local y demostración CRUD
 
-Iniciar Airflow conservando las tres bases:
-
-```bash
-python -m scripts.prepare_airflow
-docker compose --env-file .env --env-file .airflow/local.env \
-  -f compose.yaml -f compose.airflow.yaml up -d --wait --wait-timeout 600 airflow
-```
-
-Airflow está en http://localhost:8080. La contraseña generada permanece en su volumen local; no se guarda en esta documentación. El cron es 06:00 UTC (01:00 Lima), inicialmente pausado. El equipo y Docker deben permanecer activos para ejecutar la programación; las descargas nuevas necesitan Internet. Los archivos de GDELT se descargan a disco y se comparten mediante el volumen local.
+Airflow se inicia junto con los otros servicios mediante `docker compose up -d`. Su interfaz está en http://localhost:8080. La contraseña web se configura con `AIRFLOW_ADMIN_PASSWORD`; la conexión interna a PostgreSQL no necesita una clave en este despliegue local. El DAG queda activo por defecto y programa la extracción a las 06:00 UTC (01:00 Lima), con `catchup=False`. El equipo y Docker deben permanecer activos para ejecutar la programación; las descargas nuevas necesitan Internet. Los archivos de GDELT se descargan a disco y se comparten mediante el volumen local.
 
 Ejecutar CRUD en las tres bases:
 

@@ -1,9 +1,33 @@
-"""Configuración del proceso. Cargar .env en el shell antes de ejecutar Python."""
+"""Configuración del proceso; las variables del shell prevalecen sobre .env."""
 import os
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_project_env():
+    """Load simple KEY=VALUE settings from the repository .env if present."""
+    env_path = ROOT / '.env'
+    if not env_path.is_file():
+        return
+    for raw_line in env_path.read_text(encoding='utf-8-sig').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#'):
+            continue
+        if line.startswith('export '):
+            line = line[7:].lstrip()
+        key, separator, value = line.partition('=')
+        key = key.strip()
+        if not separator or not key or key in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+            value = value[1:-1]
+        os.environ[key] = value
+
+
+load_project_env()
 
 
 def port(name, default):
@@ -22,8 +46,10 @@ CASSANDRA_KEYSPACE = os.getenv('CASSANDRA_KEYSPACE', 'global_news_analytics')
 if not re.fullmatch(r'[a-z][a-z0-9_]{0,47}', CASSANDRA_KEYSPACE):
     raise ValueError('CASSANDRA_KEYSPACE debe ser un identificador CQL en minusculas')
 NEO4J_URI = os.getenv('NEO4J_URI', 'bolt://127.0.0.1:7688')
-NEO4J_USER = os.getenv('NEO4J_USER', 'neo4j')
-NEO4J_PASSWORD = os.getenv('NEO4J_PASSWORD')
+# The local Compose stack disables Neo4j authentication. Keep this unset so a
+# stale host-shell variable cannot make local clients attempt password auth.
+NEO4J_USER = 'neo4j'
+NEO4J_PASSWORD = None
 NEO4J_DATABASE = os.getenv('NEO4J_DATABASE', 'neo4j')
 DATA_DIR = Path(os.getenv('GNI_DATA_DIR', str(ROOT / 'data'))).expanduser()
 if not DATA_DIR.is_absolute():

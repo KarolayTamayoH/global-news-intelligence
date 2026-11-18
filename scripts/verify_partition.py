@@ -25,8 +25,6 @@ def entities(values):
 
 def verify_partition(target_date):
     validate_target_date(target_date)
-    if not NEO4J_PASSWORD:
-        raise ValueError('Configura NEO4J_PASSWORD en el entorno')
     themes, organizations = Counter(), Counter()
     records = tone_count = theme_edges = org_edges = 0
     tone_sum = 0.0
@@ -81,7 +79,8 @@ def verify_partition(target_date):
     finally:
         cluster.shutdown()
     graph = {}
-    with GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD)) as driver:
+    auth = (NEO4J_USER, NEO4J_PASSWORD) if NEO4J_PASSWORD else None
+    with GraphDatabase.driver(NEO4J_URI, auth=auth) as driver:
         with driver.session(database=NEO4J_DATABASE) as session:
             for key, pattern, expected in [
                 ('records', '(r:GKGRecord {date:$date})', records),

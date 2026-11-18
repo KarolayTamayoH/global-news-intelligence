@@ -1,24 +1,42 @@
 # 🌍 Global News Intelligence
 
-Plataforma académica de análisis de registros GDELT GKG mediante MongoDB, Cassandra, Neo4j, Apache Airflow y Streamlit.
+Plataforma local para analizar registros GDELT GKG con MongoDB, Cassandra, Neo4j, Apache Airflow y Streamlit. Un único `compose.yaml` orquesta los servicios; los archivos del pipeline quedan en `data/`.
 
-**Entrega totalmente local**, con Airflow y las tres bases en Docker, archivos en `data/` y Streamlit en el Mac. La configuración activa está en [`deploy/local.json`](deploy/local.json).
+## Puesta en marcha local
 
-## Estado comprobado
+Requisitos: Git y Docker Desktop instalado y en ejecución. Estos pasos son para Windows PowerShell y se ejecutan desde la carpeta del repositorio clonado.
 
-- DAG de ocho tareas importado y ejecutado dos veces en Airflow 2.11.1 local: todas las tareas en `success`, sin duplicados al repetir.
-- **403.941 registros en seis fechas** reconciliados en las tres bases: 23–27 de octubre y 6 de noviembre de 2026. Evidencia: [`docs/historical_verification.json`](docs/historical_verification.json).
-- Dashboard con tres vistas conectadas: indicadores Cassandra, documentos MongoDB y relaciones Neo4j.
-- CRUD ejecutado y verificado en las tres bases con UUID propios y limpieza de datos de prueba.
-- 34 pruebas automatizadas aprobadas y comprobación de la aplicación con bases reales, sin errores.
-- Capturas reales del navegador e informe LaTeX/PDF actualizados.
-- **Scheduler verificado:** ejecución programada real, ocho tareas exitosas y 80.739 registros del 6 de noviembre reconciliados.
-- **Recuperación Cassandra verificada:** un fallo tras 25 escrituras conserva la versión visible; el reintento publica una versión completa y reconcilia las tres bases.
-- **Pendiente:** rendimiento, retención de versiones, reproducibilidad en otro equipo y video/entrega.
+1. Crea la configuración local a partir de la plantilla, si aún no existe:
 
-Los cinco JSONL locales de 20261023–20261027 suman **323.202 registros**. Las bases actuales contienen esos registros y otros 80.739 del 6 de noviembre descargados por el scheduler: 403.941 en total. Un registro GKG no equivale a un artículo único.
+   ```powershell
+   if (!(Test-Path .env)) { Copy-Item .env.example .env }
+   ```
 
-## Arquitectura local
+2. Abre `.env` y configura la contraseña de acceso web de Airflow. `AIRFLOW_ADMIN_USERNAME` define el usuario (por defecto, `admin`) y `AIRFLOW_ADMIN_PASSWORD` su contraseña.
+
+   ```powershell
+   notepad .env
+   ```
+
+3. Construye y levanta la plataforma:
+
+   ```powershell
+   docker compose up -d --build --wait --wait-timeout 600
+   ```
+
+   Compose inicia las bases de datos, ejecuta `python -m scripts.bootstrap_databases` desde el contenedor Airflow y después arranca Airflow. El bootstrap es repetible y no elimina registros. El DAG queda activo desde su creación; con Docker encendido, programa una extracción diaria a las 06:00 UTC (01:00 en Lima). `catchup=False` evita recuperar todas las fechas históricas. La fecha programada se calcula como el día anterior al fin del intervalo UTC.
+
+Al terminar, abre:
+
+| Interfaz | Dirección |
+|---|---|
+| Dashboard Streamlit | <http://localhost:8501> |
+| Airflow | <http://localhost:8080> |
+| Neo4j Browser | <http://localhost:7475> |
+
+Las bases se publican localmente en MongoDB `27018`, Cassandra `9043` y Neo4j Bolt `7688`. La autenticación interna de PostgreSQL y Neo4j está desactivada para este stack local; solo el usuario web de Airflow usa las credenciales de `.env`. No compartas ese archivo.
+
+## Arquitectura
 
 ```mermaid
 flowchart TD
@@ -27,157 +45,131 @@ flowchart TD
     F --> M[(MongoDB: documentos e historiales)]
     M --> C[(Cassandra: métricas y frecuencias)]
     M --> N[(Neo4j: registros y relaciones)]
-    C --> V[Reconciliación y reporte de indicadores]
+    C --> V[Reconciliación e indicadores]
     N --> V
-    C --> D[Streamlit: Indicadores]
-    M --> E[Streamlit: Documentos]
-    N --> G[Streamlit: Relaciones]
+    C --> D[Streamlit: indicadores]
+    M --> E[Streamlit: documentos]
+    N --> G[Streamlit: relaciones]
 ```
 
-MongoDB conserva arrays y campos semiestructurados. Cassandra materializa consultas por fecha. Neo4j conecta registros con temas y organizaciones. Airflow y las tres bases están en Docker; Streamlit y los scripts también pueden ejecutarse en el venv del Mac. Los artefactos del DAG usan `file:///opt/gni/data`, montado desde `./data`.
+MongoDB conserva documentos con campos semiestructurados. Cassandra materializa métricas y frecuencias por fecha. Neo4j modela registros, temas y organizaciones como nodos conectados. Los artefactos del DAG usan `file:///opt/gni/data`, montado desde `./data`.
 
-## Arranque
+## Esquema de cada registro GKG
 
-Entorno comprobado: Python 3.14.6 en macOS; Airflow 2.11.1 con Python 3.12 dentro de Docker; MongoDB 8.0, Cassandra 5.0 y Neo4j 5.26 Community.
+El transformador convierte cada fila del archivo GDELT GKG en un documento JSON. MongoDB valida los campos requeridos y sus tipos con [`scripts/mongodb/schema.json`](scripts/mongodb/schema.json).
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-lock.txt
-cp -n .env.example .env
-```
+| Campo | Tipo | Contenido |
+|---|---|---|
+| `_id` | Cadena | Hash SHA-256 del nombre del archivo y número de fila de origen |
+| `date` | Cadena `YYYYMMDD` | Fecha extraída de `DATE` |
+| `num_articles` | Entero | Valor de `NUMARTS` |
+| `themes` | Lista de cadenas | Temas de `THEMES`, separados por punto y coma |
+| `persons` | Lista de cadenas | Personas de `PERSONS` |
+| `organizations` | Lista de cadenas | Organizaciones de `ORGANIZATIONS` |
+| `sources` | Lista de cadenas | Fuentes de `SOURCES` |
+| `source_urls` | Lista de cadenas | URLs de `SOURCEURLS` |
+| `locations_raw` | Cadena | Valor original de `LOCATIONS` |
+| `tone_raw` | Cadena | Valor original de `TONE` |
+| `counts_raw` | Cadena | Valor original de `COUNTS` |
+| `cameo_event_ids_raw` | Cadena | Valor original de `CAMEOEVENTIDS` |
+| `source_file` | Cadena | Nombre del ZIP GKG de origen |
 
-Conservar el `.env` y el venv existentes. Editar la contraseña Neo4j en `.env` y exportar la configuración antes de ejecutar scripts:
-
-```bash
-set -a
-source .env
-set +a
-docker compose up -d --wait --wait-timeout 600
-python -m scripts.bootstrap_databases
-```
-
-Iniciar Airflow:
-
-```bash
-python -m scripts.prepare_airflow
-docker compose --env-file .env --env-file .airflow/local.env \
-  -f compose.yaml -f compose.airflow.yaml build airflow
-docker compose --env-file .env --env-file .airflow/local.env \
-  -f compose.yaml -f compose.airflow.yaml up -d --wait --wait-timeout 600 airflow
-```
-
-Iniciar el dashboard desde la raíz, con las variables exportadas:
-
-```bash
-python -m streamlit run dashboard/app.py
-```
-
-| Interfaz / servicio | Acceso desde el Mac |
-|---|---|
-| Streamlit | http://localhost:8501 |
-| Airflow | http://localhost:8080 |
-| Neo4j Browser | http://localhost:7475 |
-| MongoDB | Puerto 27018 |
-| Cassandra | Puerto 9043 |
-| Neo4j Bolt | Puerto 7688 |
-
-Airflow crea el usuario `admin` y una contraseña en su volumen, archivo `/opt/airflow/standalone_admin_password.txt`; no se versiona. `.airflow/local.env` contiene únicamente la clave generada de metadatos. No compartir esos archivos ni imprimir la configuración Compose completa en evidencias.
-
-Guía detallada: [`docs/ejecucion_local.md`](docs/ejecucion_local.md).
+Las listas se separan por `;` y se eliminan elementos vacíos. Los campos terminados en `_raw` conservan el valor de GDELT sin descomponerlo. Cada documento representa un registro GKG, que puede agrupar referencias a varios artículos; no equivale necesariamente a un artículo individual.
 
 ## Pipeline y programación
 
 `select_partition → extract → validate → transform → load_mongodb → [aggregate_cassandra, load_neo4j] → generate_indicators`
 
-- Cron `0 6 * * *`: 06:00 UTC / 01:00 Lima. El equipo y Docker deben estar activos; GDELT requiere Internet para nuevas descargas.
-- Fecha automática: día anterior al fin del intervalo UTC. Para pruebas manuales se usa `{"target_date":"20261027"}`.
-- Dos reintentos separados por cinco minutos, máximo una ejecución activa y `catchup=False`.
-- **DAG activo:** ejecución `scheduled__2026-11-06T06:00:00+00:00` verificada; evidencia en [`docs/airflow_scheduled_verification.json`](docs/airflow_scheduled_verification.json).
-- XCom transporta metadatos y rutas, no ZIP/JSONL. Las tareas recuperan sus archivos desde el volumen compartido y usan temporales locales.
-- `pipeline_history` registra etapas y solo marca `completed` después de reconciliar las tres bases y publicar los seis indicadores.
+- El cron es `0 6 * * *` (06:00 UTC / 01:00 Lima). El equipo debe permanecer encendido y GDELT requiere Internet para descargar particiones nuevas.
+- La fecha automática es el día anterior al fin del intervalo UTC. Para una ejecución manual se pasa, por ejemplo, `{"target_date":"20261027"}` en la configuración del DAG.
+- Cada tarea admite dos reintentos separados por cinco minutos; se permite una ejecución activa y `catchup=False`.
+- XCom transporta metadatos y rutas; los archivos ZIP y JSONL se comparten mediante `data/`.
+- `pipeline_history` registra las etapas y solo marca una ejecución `completed` tras reconciliar las bases y publicar el informe de indicadores.
 
-Ejecutar las mismas etapas desde terminal:
+Para ejecutar una fecha manualmente desde un entorno Python local, con las bases de Compose ya levantadas y las dependencias instaladas:
 
 ```bash
 python -m scripts.run_pipeline --date 20261027
 ```
 
-La importación, ejecución histórica, repetición y programación del DAG se documentan en [`docs/airflow_local.md`](docs/airflow_local.md).
+## Dashboard
 
-## Dashboard multimodelo
+El dashboard tiene cuatro vistas que comparten la fecha seleccionada: Panorama, Indicadores, Documentos y Relaciones.
 
-Las tres pestañas comparten una fecha. Las tarjetas de último día siguen mostrando la fecha más reciente de Cassandra; los rankings, documentos y grafo usan la selección.
-
-| Vista | Base | Funcionalidad |
+| Vista | Fuente | Funcionalidad |
 |---|---|---|
-| Indicadores | Cassandra | Volumen, variación, top temas, diversidad, tono, top organizaciones y tabla diaria |
-| Documentos | MongoDB | Tema exacto, búsqueda literal de organización, páginas de hasta 100 registros y documento JSON completo |
-| Relaciones | Neo4j | Conteos por fecha, filtro exacto de entidad y grafo interactivo de hasta cinco registros |
+| Panorama | Cassandra, MongoDB y Neo4j | Disponibilidad de las fuentes y resumen del día |
+| Indicadores | Cassandra | Volumen, variación, temas, diversidad, tono y organizaciones |
+| Documentos | MongoDB | Filtro por código de tema exacto, búsqueda literal de organización y páginas de 20, 50 o 100 documentos |
+| Relaciones | Neo4j | Conteos, perfiles de entidades y muestra interactiva de hasta cinco registros |
 
-Un fallo de una fuente no oculta las otras vistas. La caché de datos dura 60 segundos; **Actualizar datos** la invalida. Los textos de usuario se parametrizan en Cypher y la búsqueda organizacional MongoDB escapa caracteres de regex.
+Las vistas consultan sus fuentes de forma independiente, así un error de una base no oculta las demás. La mayoría de resultados se conserva en caché por 60 segundos; algunos análisis del grafo, por hasta cinco minutos. **Actualizar datos** limpia la caché. La búsqueda organizacional no distingue mayúsculas y escapa los caracteres especiales.
 
-El grafo es una muestra acotada y no un ranking global. El cargador conserva solo las primeras diez entradas por lista de temas/organizaciones antes de deduplicar; esa limitación aparece en la vista.
+La muestra de grafo no es un ranking global. Al cargar Neo4j se conservan como máximo las primeras diez entradas de cada lista de temas y organizaciones por registro, antes de deduplicar.
 
-## CRUD reproducible
+![Vista general de la página de inicio del dashboard](dashboard/portada.jpeg)
 
-```bash
-python -m scripts.crud_demo --output docs/crud_verification.json
-```
+## KPI e indicadores relacionales
 
-También admite `--database mongodb`, `--database cassandra` o `--database neo4j`. La demostración crea datos de prueba con UUID en `crud_demo` (MongoDB/Cassandra) o `CrudDemo` (Neo4j), lee el valor inicial, lo actualiza de 1 a 2, elimina y verifica la limpieza. Neo4j incluye creación, modificación y eliminación de una relación. Las tablas/colecciones vacías se conservan; no se borran registros GKG ni métricas.
+El proyecto define seis KPI de negocio, calculados desde MongoDB y servidos desde Cassandra, y cinco indicadores relacionales formales sobre el grafo Neo4j. El dashboard presenta también el total de entidades únicas como **R0**, un conteo descriptivo adicional que no forma parte de los cinco indicadores relacionales numerados en el informe.
 
-## KPIs y resultados
+### KPI de negocio (Cassandra)
 
 | KPI | Definición |
 |---|---|
-| Volumen | Registros GKG por día y suma del período disponible |
-| Variación | `100 × (R_actual − R_anterior_disponible) / R_anterior_disponible`; N/D sin base positiva |
-| Top 10 temas | Registros que contienen cada tema; una contribución por registro y tema |
-| Diversidad | Códigos temáticos distintos por fecha |
-| Tono | Promedio del primer componente numérico de `tone_raw` |
-| Top 10 organizaciones | Registros que contienen cada organización; deduplicación por registro |
+| 1. Volumen diario | Registros GKG en una fecha; también se muestra el total de las fechas disponibles |
+| 2. Variación diaria | `100 × (registros actuales − registros de la fecha anterior disponible) / registros de la fecha anterior disponible`; N/D si no existe una base positiva |
+| 3. Frecuencia de temas | Registros que contienen cada tema; una contribución por registro y tema; se muestran los diez primeros |
+| 4. Diversidad temática | Número de códigos temáticos distintos por fecha |
+| 5. Tono promedio | Promedio del primer componente numérico de `tone_raw`, usando registros con tono válido |
+| 6. Organizaciones más mencionadas | Registros que contienen cada organización, deduplicada por registro; se muestran las diez primeras |
 
-Para 20261027 se comprobaron 84.723 registros, 8.817 temas distintos, 66.254 organizaciones distintas y tono medio −0,6621133004352675. Neo4j conserva 707.104 relaciones HAS_THEME y 239.232 MENTIONS_ORG. El histórico actual tiene seis fechas; la variación del 6 de noviembre respecto a la fecha anterior disponible, 27 de octubre, es −4,70 %. No hay datos cargados para las fechas intermedias.
+### Indicadores relacionales (Neo4j)
 
-## Pruebas y evidencias
+| Indicador | Definición que muestra el dashboard |
+|---|---|
+| R0. Entidades únicas | Total de temas distintos más organizaciones distintas para la fecha; conteo descriptivo adicional |
+| R1. Concentración del Top 10 | Porcentaje de todas las menciones que corresponde a las diez entidades más mencionadas, calculado por separado para temas y organizaciones |
+| R2. Cola larga | Porcentaje de entidades que aparecen en exactamente un registro, calculado por separado para temas y organizaciones |
+| R3. Conectividad por registro | Relaciones `HAS_THEME` y `MENTIONS_ORG` divididas entre el número de registros de la fecha |
+| R4. Co-ocurrencia de organizaciones | Registros compartidos por pares entre las 40 organizaciones más mencionadas; se muestran hasta diez pares |
+| R5. Afinidad de una entidad | Para una organización o tema seleccionado, porcentaje de sus registros que también contiene cada entidad relacionada; se muestran hasta diez relaciones |
+
+R1–R5 corresponden a los cinco indicadores relacionales definidos en el [informe](docs/informe/main.tex). R0 aparece en el dashboard como contexto del grafo. R1 y R2 se presentan para temas y organizaciones; el grafo solo conserva hasta diez entradas de cada lista por registro, por lo que sus resultados reflejan ese límite.
+
+Como referencia histórica, la partición del **27 de octubre de 2026** fue verificada con 84.723 registros, 8.817 temas y 66.254 organizaciones distintas, con tono medio −0,6621. El informe de verificación también registró 707.104 relaciones `HAS_THEME` y 239.232 `MENTIONS_ORG`, sujetas al límite de entidades por registro.
+
+Los informes guardados en `docs/data-utils/` son evidencias de ejecuciones fechadas; no indican por sí solos qué datos hay ahora en los volúmenes locales. Por ejemplo, el snapshot verificado el 8 de noviembre de 2026 contiene seis fechas y 403.941 registros en total. No hay datos de GDELT incluidos en un clon nuevo: el DAG descarga la partición que le corresponde al ejecutarse.
+
+## Verificación
+
+Para ejecutar las pruebas unitarias:
 
 ```bash
 python -m unittest discover -s tests -v
-python -m scripts.verify_dashboard --date 20261027
-python -m scripts.verify_partition --date 20261027 --output docs/verificacion_local.json
 ```
 
-La suite usa datos sintéticos y clientes simulados; los dos últimos comandos necesitan bases reales. Las comprobaciones reales se ejecutaron y están guardadas:
+Las comprobaciones de integración consultan bases reales. Algunos ejemplos para una fecha ya cargada:
 
-- [`docs/airflow_verification_first.json`](docs/airflow_verification_first.json) y [`docs/airflow_verification_repeat.json`](docs/airflow_verification_repeat.json).
-- [`docs/dashboard_verification.json`](docs/dashboard_verification.json).
-- [Recuperación Cassandra](docs/cassandra_recovery_verification.json) y [seis fechas versionadas reconciliadas](docs/cassandra_snapshot_verification.json).
-- [`docs/crud_verification.json`](docs/crud_verification.json).
-- [`docs/verificacion_local.json`](docs/verificacion_local.json).
-- [`docs/local_environment_verification.json`](docs/local_environment_verification.json).
-- Capturas reales y comprobación del navegador en [`docs/capturas/`](docs/capturas/).
-- Informe: `informe.tex` y `informe.pdf`.
+```bash
+python -m scripts.verify_dashboard --date 20261027
+python -m scripts.verify_partition --date 20261027
+```
 
-## Modelos y código
+Evidencias versionadas: [verificación histórica](docs/data-utils/historical_verification.json), [ejecución programada de Airflow](docs/data-utils/airflow_scheduled_verification.json), [verificación del dashboard](docs/data-utils/dashboard_verification.json), [recuperación de Cassandra](docs/data-utils/cassandra_recovery_verification.json), [CRUD](docs/data-utils/crud_verification.json) y [capturas](docs/capturas/).
 
-| Componente | Código / esquema |
+## Código y esquemas
+
+| Componente | Ubicación |
 |---|---|
 | Configuración | `src/config.py`, `.env.example`, `deploy/local.json` |
-| Ingesta y transformación | `src/ingestion/`, `src/transformation/`, `src/validation/` |
-| Etapas del DAG y archivos | `src/pipeline/`, `dags/global_news_ingestion.py` |
-| MongoDB | `scripts/mongodb/schema.json`; índices y creación en `scripts/bootstrap_databases.py` |
-| Cassandra | `scripts/cassandra/schema.cql`; particiones por fecha y agrupación global |
-| Neo4j | `scripts/neo4j/schema.cypher`; unicidad de nodos e índice de fecha |
+| Ingesta, validación y transformación | `src/ingestion/`, `src/validation/`, `src/transformation/` |
+| DAG y etapas | `dags/global_news_ingestion.py`, `src/pipeline/` |
+| Bootstrap | `scripts/bootstrap_databases.py` |
+| Esquema MongoDB | `scripts/mongodb/schema.json` |
+| Esquema Cassandra | `scripts/cassandra/schema.cql` |
+| Esquema Neo4j | `scripts/neo4j/schema.cypher` |
 | Dashboard | `dashboard/app.py`, `dashboard/queries.py`, `dashboard/graph.py` |
-| CRUD | `scripts/crud_demo.py` |
+| Imágenes de bases de datos | `docker/mongo/`, `docker/cassandra/`, `docker/neo4j/` |
 
-## Limitaciones y cierre
-
-Quedan las pruebas de rendimiento y recuperación de otras etapas, la retención de versiones Cassandra, la reproducción en otro equipo, la actualización de capturas e informe y el video de 20–25 minutos con todos los integrantes. La entrega del curso es el **17 de noviembre de 2026**.
-
-Cassandra publica versiones completas: las frecuencias se escriben y verifican con un UUID nuevo antes de activar conjuntamente métricas y generación. Un fallo previo conserva la última versión publicada. Las versiones anteriores y los intentos incompletos se conservan; falta definir su retención. Se requiere un único escritor por fecha. Guía y prueba reproducible: [`docs/cassandra_recovery.md`](docs/cassandra_recovery.md). Los rankings se ordenan en Python. Los identificadores documentales dependen de archivo y fila; el contrato asume archivos diarios inmutables. El grafo está truncado y los conteos no prueban la identidad de cada arista. La reproducción en una segunda máquina sigue pendiente.
-
-Plan actualizado: [`docs/plan_proximos_pasos.md`](docs/plan_proximos_pasos.md).
-
-Fuente de datos: [GDELT GKG](https://data.gdeltproject.org/gkg/index.html). Requisitos académicos: `instrucciones_proyecto.md`.
+Fuente: [GDELT GKG](https://data.gdeltproject.org/gkg/index.html). El informe del proyecto está en [`docs/informe/main.tex`](docs/informe/main.tex).
